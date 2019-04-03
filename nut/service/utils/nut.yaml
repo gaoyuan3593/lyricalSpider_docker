@@ -1,0 +1,9 @@
+
+redis:
+  password: Nuttek34o9!
+  host: pandora_redis_host
+  port: 6379
+
+
+host: 127.0.0.1
+port: 8080

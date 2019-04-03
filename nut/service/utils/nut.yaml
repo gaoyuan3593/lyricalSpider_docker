@@ -1,7 +1,7 @@
 
 redis:
-  password: Nuttek34o9!
-  host: pandora_redis_host
+  password: 172.19.135.131
+  host: nut_redis_host
   port: 6379
 
 

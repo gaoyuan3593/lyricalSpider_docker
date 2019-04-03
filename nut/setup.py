@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "beautifulsoup4==4.6.0",
         "elasticsearch==6.3.1",
+        "APScheduler==3.6.0",
         "bs4==0.0.1",
         "fake-useragent==0.1.10",
         "Flask==0.12.4",

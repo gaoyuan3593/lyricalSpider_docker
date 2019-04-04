@@ -32,3 +32,19 @@ class ServiceUnavailableError(GenericAppError):
         self.message = msg
 
         self.status_code = status_code
+
+
+class HttpInternalServerError(GenericAppError):
+    def __init__(self, err_code=500005, msg='数据源Http内部服务器错误!', status_code=200):
+        self.code = err_code
+        self.message = msg
+
+        self.status_code = status_code
+
+
+class RequestFailureError(GenericAppError):
+    def __init__(self, err_code=500006, msg='请求失败', status_code=200):
+        self.code = err_code
+        self.message = msg
+
+        self.status_code = status_code

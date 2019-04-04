@@ -25,6 +25,7 @@ class GenericAppError(Exception):
     def status_code(self):
         return self.status_code
 
+
 RETRY_RETURN_NOTHING = 'nothing'
 
 
@@ -49,5 +50,7 @@ def retry(max_retries=3, exceptions=(), time_to_sleep=0, save_result=None):
                         raise e
                     time.sleep(time_to_sleep)
             return None
+
         return wrapper
+
     return decorator

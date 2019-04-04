@@ -38,6 +38,7 @@ setup(
         "urllib3==1.22",
         "celery==4.3.0",
         "pymongo==3.7.2",
+        "pandas==0.24.2",
     ],
     data_files=[
     ],

@@ -8,7 +8,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from bs4 import BeautifulSoup
-from service.db.utils.elasticsearch_utils import es
+#from service.db.utils.elasticsearch_utils import es
 
 
 class WeiBoHotSpider(object):

@@ -154,7 +154,7 @@ def login(username, password):
 
 def write_file(data):
     print("正在写文件")
-    with open("weibo.json", "a", encoding="utf-8") as f:
+    with open("weibo1.json", "a", encoding="utf-8") as f:
         f.write(json.dumps(data, ensure_ascii=False) + "\n")
     return True
 
@@ -297,8 +297,10 @@ if __name__ == "__main__":
 
     from random import choice
     #login(username, password)
-    zi = ["契合", "黄土高坡", "桂林", "海南岛", "事故", "打官司", "狗不理 包子", "标志性建筑", "打人误伤", "扶老奶奶过马路",
-          "黑龙江经济", "全国GDP", "人民币汇率", "工业行情", "人与人之间", "历史人物", "王安石", "赵构", "大唐", "宋朝"]
+    # zi = ["契合", "黄土高坡", "桂林", "海南岛", "事故", "打官司", "狗不理 包子", "标志性建筑", "打人误伤", "扶老奶奶过马路",
+    #       "黑龙江经济", "全国GDP", "人民币汇率", "工业行情", "人与人之间", "历史人物", "王安石", "赵构", "大唐", "宋朝"]
+
+    zi = ["绿色改变中国"]
     while True:
         try:
             ci = choice(zi)

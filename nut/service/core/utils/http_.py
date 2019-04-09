@@ -115,7 +115,7 @@ class Requester(object):
 
     @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
                                       ServiceUnavailableError, BadRequestError), time_to_sleep=1)
-    def get(self, url, header_dict=None, params=EMPTY_PARAMETER, is_not_redirct=False, stream=False):
+    def get(self, url, header_dict=None, params=EMPTY_PARAMETER, is_not_redirct=True, stream=False):
         logger.info('GET {}'.format(url))
         try:
             resp = self.s.get(url, headers=header_dict, params=params, allow_redirects=is_not_redirct,

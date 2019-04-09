@@ -1,9 +1,23 @@
 
+mysql:
+  database: test
+  user: root
+  password: 123456
+  host: pandora_postgres_host
+  port: 3306
+
+
 redis:
-  password: 172.19.135.131
-  host: nut_redis_host
+  password: tjuscswz123
+  host: 59.67.37.29
   port: 6379
 
+
+es:
+  url: https://172.19.135.131
+  user:
+  password:
+  port: 9200
 
 host: 127.0.0.1
 port: 8080

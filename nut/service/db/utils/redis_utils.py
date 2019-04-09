@@ -1,27 +1,18 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
+
 from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
+import random
+import redis
 
 conf = get_by_name_yaml('redis')
-
-SEQ_NO_REDIS_URL = 'redis://:%s@%s:%s/0' % (conf['password'], conf['host'], conf['port'])
-COOKIE_REDIS_URL = 'redis://:%s@%s:%s/1' % (conf['password'], conf['host'], conf['port'])
-REFEREES_REDIS_URL = 'redis://:%s@%s:%s/3' % (conf['password'], conf['host'], conf['port'])
-TEMP_REDIS_URL = 'redis://:%s@%s:%s/4' % (conf['password'], conf['host'], conf['port'])
-CACHE_REDIS_URL = 'redis://:%s@%s:%s/5' % (conf['password'], conf['host'], conf['port'])
-
-SEQ_NO_EXPIRE = 60 * 60
-COOKIE_EXPIRE = 20 * 60
-
-cache_config = {
-    'CACHE_TYPE': 'redis',
-    'CACHE_KEY_PREFIX': 'pandora',
-    'CACHE_DEFAULT_TIMEOUT': 24*3600,
-    'CACHE_REDIS_HOST': conf['host'],
-    'CACHE_REDIS_PORT': conf['port'],
-    'CACHE_REDIS_URL': CACHE_REDIS_URL
-    }
+# 页码
+WEIBO_PAGE_REDIS_URL = 'redis://:%s@%s:%s/1' % (conf['password'], conf['host'], conf['port'])
+# 评论
+WEIBO_CONTENT_REDIS_URL = 'redis://:%s@%s:%s/2' % (conf['password'], conf['host'], conf['port'])
+# 转发
+WEIBO_FORWARD_REDIS_URL = 'redis://:%s@%s:%s/3' % (conf['password'], conf['host'], conf['port'])
 
 
 def redis_cli(url):
@@ -39,8 +30,8 @@ def redis_cli(url):
 
 class RedisQueue(object):
     def __init__(self, name, namespace='queue', **redis_kwargs):
-       self.__db = redis_cli(REFEREES_REDIS_URL)
-       self.key = '%s:%s' % (namespace, name)
+       self.__db = redis_cli(WEIBO_PAGE_REDIS_URL)
+       self.key = '{}:{}'.format(namespace, name)
 
     def qsize(self):
         return self.__db.llen(self.key)
@@ -57,40 +48,90 @@ class RedisQueue(object):
         return item
 
 
-seq_no_redis_cli = redis_cli(SEQ_NO_REDIS_URL)
-cookie_redis_cli = redis_cli(COOKIE_REDIS_URL)
-dict_redis_cli = redis_cli(TEMP_REDIS_URL)
+class RedisClient(object):
+    def __init__(self, type, website, host=conf['host'], port=conf['port'], password=conf['password']):
+        """
+        初始化Redis连接
+        :param host: 地址
+        :param port: 端口
+        :param password: 密码
+        """
+        self.db = redis.StrictRedis(host=host, port=port, password=password, decode_responses=True)
+        self.type = type
+        self.website = website
+
+    def name(self):
+        """
+        获取Hash的名称
+        :return: Hash名称
+        """
+        return "{type}:{website}".format(type=self.type, website=self.website)
+
+    def set(self, username, value):
+        """
+        设置键值对
+        :param username: 用户名
+        :param value: 密码或Cookies
+        :return:
+        """
+        return self.db.hset(self.name(), username, value)
+
+    def get(self, username):
+        """
+        根据键名获取键值
+        :param username: 用户名
+        :return:
+        """
+        return self.db.hget(self.name(), username)
+
+    def delete(self, username):
+        """
+        根据键名删除键值对
+        :param username: 用户名
+        :return: 删除结果
+        """
+        return self.db.hdel(self.name(), username)
+
+    def count(self):
+        """
+        获取数目
+        :return: 数目
+        """
+        return self.db.hlen(self.name())
+
+    def random(self):
+        """
+        随机得到键值，用于随机Cookies获取
+        :return: 随机Cookies
+        """
+        return random.choice(self.db.hvals(self.name()))
+
+    def usernames(self):
+        """
+        获取所有账户信息
+        :return: 所有用户名
+        """
+        return self.db.hkeys(self.name())
+
+    def all(self):
+        """
+        获取所有键值对
+        :return: 用户名和密码或Cookies的映射表
+        """
+        return self.db.hgetall(self.name())
+
+    def return_choice_cookie(self):
+        """
+        :return: 一个随机cookie
+        """
+        user_name = random.choice(list(self.all()))
+        return self.get(user_name)
 
 
-def set_cookie(k, v):
-    cookie_redis_cli.set(k, v)
-
-
-def get_cookie(k):
-
-    v = cookie_redis_cli.get(k)
-    if v:
-        v = v.decode('utf-8')
-        logger.info('get cookie from redis: {}'.format(v))
-        return v
-    else:
-        return None
-
-
-def set_redis_key(k, v):
-    dict_redis_cli.set(k, v)
-
-
-def get_redis_key(k):
-    logger.info("get_redid_key key:{}".format(k))
-    try:
-        v = dict_redis_cli.get(k)
-    except Exception as e:
-        logger.exception(e)
-    logger.info("get_redid_key values:{}".format(v))
-    if v:
-        v = v.decode('utf-8')
-        logger.info('get cookie from redis: {}'.format(v))
-        return v
-    else:
-        return None
+if __name__ == '__main__':
+    conn = RedisClient('accounts', 'weibo')
+    conn_cookie = RedisClient('cookies', 'weibo')
+    result = conn.usernames()
+    user = random.choice(list(conn_cookie.all()))
+    result2 = conn_cookie.get(user)
+    print(result)

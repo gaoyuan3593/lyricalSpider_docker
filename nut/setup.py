@@ -18,7 +18,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "beautifulsoup4==4.6.0",
-        "elasticsearch==6.3.1",
+        "elasticsearch>=6.0.0",
         "APScheduler==3.6.0",
         "bs4==0.0.1",
         "fake-useragent==0.1.10",
@@ -39,6 +39,8 @@ setup(
         "celery==4.3.0",
         "pymongo==3.7.2",
         "pandas==0.24.2",
+        "pillow==6.0.0",
+        "rsa==4.0",
     ],
     data_files=[
     ],

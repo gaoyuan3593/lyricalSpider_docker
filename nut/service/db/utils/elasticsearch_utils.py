@@ -1,38 +1,118 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-
+import json
+from service import logger
+from service.utils.yaml_tool import get_by_name_yaml
 from elasticsearch import Elasticsearch
 
-ES_URL = "http://172.19.135.131:9200/"
-ES_USER = ""
-ES_PWD = ""
-ES_PORT = "9200"
-ES_HOST = "{}:{}@{}:{}".format(ES_USER, ES_PWD, ES_URL, ES_PORT)
+conf = get_by_name_yaml('elasticsearch')
 
-es = Elasticsearch(hosts=ES_URL)
-# 创建索引，索引的名字是my-index,如果已经存在了，就返回个400，
-# 这个索引可以现在创建，也可以在后面插入数据的时候再临时创建
-# 創建映射
-mappings = {
-    "mappings": {
-        "data": {        # "文档类型"
-            "properties": {
-                "xxx": {     # "索引名"
-                    "type": "join",   # "如果想用join功能必须定义类型为join"
-                    "relations": {
-                        "parent": "child"    # 父类对应子类  attr 是父文档 info子文档(自己指定)
-                    }
-                }
-            }
-        }
-    }
-}
-if es.indices.exists("xxx") is not True:
-    es.indices.create(index="xxx", body=mappings)
 
-es.delete(index='xxx', doc_type='xxx', id='xxx')
+class ElasticsearchClient(object):
+    def __init__(self):
+        """
+        初始化 Elasticsearch 连接
+        """
+        es_host = "{}:{}/".format(conf["url"], conf["port"])
+        self.es = Elasticsearch(hosts=es_host)
 
-#更新
+    def create_index(self, index_name, ignore=400):
+        """
+        创建一个索引
+        :param index_name: 索引名称
+        :param ignore: 默认返回400
+        :return:
+        """
+        return self.es.indices.create(index_name, ignore=ignore)
 
-es.update(index='xxx', doc_type='xxx', id='xxx', body='{待更新字段}')
+    def delete_index(self, index_name, ignore=[400, 404]):
+        """
+        删除一个索引
+        :param index_name: 索引名称
+        :param ignore: 默认400,404 忽略 Index 不存在而删除失败导致程序中断的问题
+        :return:
+        """
+        return self.es.indices.delete(index_name, ignore=ignore)
+
+    def insert(self, index_name, doc_type, body):
+        """
+        插入数据
+        :param index: 索引名称
+        :param doc_type: 文本类型
+        :param body: 内容
+        :return:
+        """
+        return self.es.index(index_name, doc_type=doc_type, body=body)
+
+    def create(self, index_name, doc_type, id, body):
+        """
+        插入指定id数据
+        :param index: 索引名称
+        :param doc_type: 文本类型
+        :param id: 数据id
+        :param body: 内容
+        :return:
+        """
+        return self.es.create(index_name, doc_type=doc_type, id=id, body=body)
+
+    def update(self, index_name, doc_type, id, body):
+        """
+        更新指定id数据
+        :param index: 索引名称
+        :param doc_type: 文本类型
+        :param id: 数据id
+        :param body: 内容
+        :return:
+        """
+        return self.es.update(index_name, doc_type=doc_type, id=id, body=body)
+
+    def delete(self, index_name, id):
+        """
+        删除数据
+        :param index_name: 索引名字
+        :param id: 数据id
+        :return:
+        """
+        return self.es.delete(index_name, id=id)
+
+    def search(self, index_name, doc_type):
+        """
+        查询所有数据
+        :param index_name: 索引名称
+        :param doc_type: 文本类型
+        :return: 当前索引所有数据
+        """
+        result = self.es.search(index_name, doc_type=doc_type)
+        return json.dumps(result, aensure_ascii=False)
+
+    def dsl_search(self, index_name, doc_type, dsl):
+        """
+        通过dsl 全文检索
+        :param index_name: 索引名称
+        :param doc_type:  文本类型
+        :param dsl: dsl语句
+        :return: json
+        """
+        result = self.es.search(index_name, doc_type=doc_type, body=dsl)
+        return json.dumps(result, aensure_ascii=False)
+
+    def helpers(self, action, data):
+        try:
+            from elasticsearch import helpers
+            logger.info("Begin es to data ！")
+            action.update(_source=data)
+            helpers.bulk(self.es, action)
+        except Exception as e:
+            pass
+
+
+if __name__ == '__main__':
+    es = ElasticsearchClient()
+    result = es.create_index('news')
+    print(result)
+    # result = es.delete_index('news')
+    # print(result)
+    # data = {'title': '美国留给伊拉克的是个烂摊子吗', 'url': 'http://view.news.qq.com/zt2011/usa_iraq/index.htm'}
+    # result = es.create('news', 'politics', id=1, body=data)
+    # print(result)

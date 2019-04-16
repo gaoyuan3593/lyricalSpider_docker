@@ -60,13 +60,13 @@ def str_to_format_time(_str):
         elif "分钟前" in _str:
             fen = int(_str.split("分钟前")[0])
             _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
-
         elif "今天" in _str:
             today = _str.split("今天")[1]
             _str = (datetime.now()).strftime("%Y-%m-%d ") + today
-
         elif "月" in _str:
             _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
+            if len(_str) < 16:
+                _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
         return _str
     except Exception as e:
         return _str

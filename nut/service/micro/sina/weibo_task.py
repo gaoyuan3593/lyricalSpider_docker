@@ -6,7 +6,6 @@ from service.micro.sina.weibo import WeiBoSpider
 from service.micro.utils.threading_ import WorkerThread
 
 page_qq = RedisQueue('page_id', namespace='page_id')
-print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 
 def run(params):
@@ -33,10 +32,9 @@ def run(params):
         if work.isAlive():
             threads.append(work)
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    print(details_list)
     wb_obj.save_data_to_es(details_list)
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 
 if __name__ == '__main__':
-    run("妞妞")
+    run("艾米")

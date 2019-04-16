@@ -28,10 +28,13 @@ def redis_cli(url):
     )
 
 
+dict_redis_cli = redis_cli(WEIBO_PAGE_REDIS_URL)
+
+
 class RedisQueue(object):
     def __init__(self, name, namespace='queue', **redis_kwargs):
-       self.__db = redis_cli(WEIBO_PAGE_REDIS_URL)
-       self.key = '{}:{}'.format(namespace, name)
+        self.__db = redis_cli(WEIBO_PAGE_REDIS_URL)
+        self.key = '{}:{}'.format(namespace, name)
 
     def qsize(self):
         return self.__db.llen(self.key)
@@ -128,10 +131,27 @@ class RedisClient(object):
         return self.get(user_name)
 
 
+def get_redis_key(k):
+    logger.info("get_redid_key key:{}".format(k))
+    try:
+        v = dict_redis_cli.get(k)
+    except Exception as e:
+        logger.exception(e)
+    logger.info("get_redid_key values:{}".format(v))
+    if v:
+        v = v.decode('utf-8')
+        logger.info('get cookie from redis: {}'.format(v))
+        return v
+    else:
+        return None
+
+
 if __name__ == '__main__':
-    conn = RedisClient('accounts', 'weibo')
-    conn_cookie = RedisClient('cookies', 'weibo')
-    result = conn.usernames()
-    user = random.choice(list(conn_cookie.all()))
-    result2 = conn_cookie.get(user)
-    print(result)
+    # conn = RedisClient('accounts', 'weibo')
+    # conn_cookie = RedisClient('cookies', 'weibo')
+    # result = conn.usernames()
+    # user = random.choice(list(conn_cookie.all()))
+    # result2 = conn_cookie.get(user)
+    # print(result)
+
+    get_redis_key("page_id")

@@ -48,3 +48,25 @@ def to_json(data, replace_single_quote=True):
             logger.info("to_json failed without replace: data: {}".format(data_to_str_for_print(data)))
 
     return data
+
+
+def str_to_format_time(_str):
+    if not _str:
+        return
+    from datetime import datetime, timedelta
+    try:
+        if "秒前" in _str:
+            _str = (datetime.now() + timedelta(minutes=-1)).strftime("%Y-%m-%d %H:%M")
+        elif "分钟前" in _str:
+            fen = int(_str.split("分钟前")[0])
+            _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
+
+        elif "今天" in _str:
+            today = _str.split("今天")[1]
+            _str = (datetime.now()).strftime("%Y-%m-%d ") + today
+
+        elif "月" in _str:
+            _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
+        return _str
+    except Exception as e:
+        return _str

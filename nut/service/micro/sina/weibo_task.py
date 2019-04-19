@@ -18,10 +18,17 @@ def run(params):
     data_list, details_list = [], []
     wb_obj = WeiBoSpider(params)
     url_list = wb_obj.run()
+    if url_list.get("status") == -1:
+        return url_list
     for url in url_list:
         worker = WorkerThread(data_list, wb_obj.get_weibo_page_data, (url,))
         worker.start()
         threads.append(worker)
+    for work in threads:
+        work.join(1)
+        if work.isAlive():
+            threads.append(work)
+    threads = []
     if data_list:
         for resp in data_list:
             worker = WorkerThread(details_list, wb_obj.get_weibo_details, (resp,))
@@ -37,4 +44,6 @@ def run(params):
 
 
 if __name__ == '__main__':
-    run("艾米")
+    # run("奔驰女车主公开录音原因")
+    run("西安奔驰维权")
+

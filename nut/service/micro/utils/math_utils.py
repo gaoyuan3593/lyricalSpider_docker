@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from service import logger
+from datetime import datetime, timedelta
 
 
 def str_to_int(x):
@@ -67,6 +68,46 @@ def str_to_format_time(_str):
             _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
             if len(_str) < 16:
                 _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
+        elif "年" in _str:
+            _str = (_str.split("年")[0].split("-")[1] + "-" + _str.split("年")[1]).strip("\'")
         return _str
     except Exception as e:
         return _str
+
+
+def date_all(begin_date, end_date):
+    date_list = []
+    begin_date = datetime.strptime(begin_date, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    while begin_date <= end_date:
+        date_list.append(begin_date)
+        begin_date += timedelta(days=1)
+    return date_list
+
+
+def date_next(params):
+    start_hours = "0"
+    q, _date = params.split("|")
+    url_list = []
+    if ":" in _date:
+        start_date, end_date = _date.split(":")
+        date_list = date_all(start_date, end_date)
+        s_y, s_m, s_d = start_date.split('-')
+        for date in date_list:
+            cu_date = "{}-{}-{}".format(s_y, s_m, str(date.day))
+            if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d"):
+                for i in range(1, 24):
+                    k = start_hours if i == 1 else str(i - 1)
+                    _s_date = (cu_date + "-" + k) + ":" + (cu_date + "-" + str(i))
+                    url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
+                                                                                                                 _s_date)
+                    url_list.append(url)
+    else:
+        for i in range(1, 24):
+            k = start_hours if i == 1 else str(i - 1)
+            _s_date = (_date + "-" + k) + ":" + (_date + "-" + str(i))
+            url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
+                                                                                                         _s_date)
+            url_list.append(url)
+
+    return url_list

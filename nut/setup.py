@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "beautifulsoup4==4.6.0",
         "elasticsearch>=6.0.0",
+        "elasticsearch-dsl>=6.3.1",
         "APScheduler==3.6.0",
         "bs4==0.0.1",
         "fake-useragent==0.1.10",
@@ -41,6 +42,7 @@ setup(
         "pandas==0.24.2",
         "pillow==6.0.0",
         "rsa==4.0",
+        "jieba==0.39",
     ],
     data_files=[
     ],

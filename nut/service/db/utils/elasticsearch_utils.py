@@ -24,6 +24,7 @@ class ElasticsearchClient(object):
         :param ignore: 默认返回400
         :return:
         """
+
         return self.es.indices.create(index_name, ignore=ignore)
 
     def delete_index(self, index_name, ignore=[400, 404]):
@@ -84,7 +85,7 @@ class ElasticsearchClient(object):
         :return: 当前索引所有数据
         """
         result = self.es.search(index_name, doc_type=doc_type)
-        return json.dumps(result, aensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False)
 
     def dsl_search(self, index_name, doc_type, dsl):
         """
@@ -95,9 +96,15 @@ class ElasticsearchClient(object):
         :return: json
         """
         result = self.es.search(index_name, doc_type=doc_type, body=dsl)
-        return json.dumps(result, aensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False)
 
     def helpers(self, action, data):
+        """
+        批量插入数据
+        :param action: 模型
+        :param data: dict
+        :return:
+        """
         try:
             from elasticsearch import helpers
             logger.info("Begin es to data ！")
@@ -108,11 +115,23 @@ class ElasticsearchClient(object):
 
 
 if __name__ == '__main__':
+    import json
+
     es = ElasticsearchClient()
-    result = es.create_index('news')
+
+    map = {
+        "query": {
+            "bool":
+                {
+                    "must":
+                        [{
+                            "term": {"b_keyword.keyword": "五花八门的过敏反应"}}],
+                    "must_not": [],
+                    "should": []}},
+        "sort": [],
+        "aggs": {}
+    }
+
+    result1 = es.dsl_search('weibo_hot_seach_details', "detail_type", map)
+    result = json.loads(result1)
     print(result)
-    # result = es.delete_index('news')
-    # print(result)
-    # data = {'title': '美国留给伊拉克的是个烂摊子吗', 'url': 'http://view.news.qq.com/zt2011/usa_iraq/index.htm'}
-    # result = es.create('news', 'politics', id=1, body=data)
-    # print(result)

@@ -8,13 +8,13 @@ mysql:
 
 
 redis:
-  password: tjuscswz123
-  host: 59.67.37.29
+  password: tjunmwz123
+  host: 172.19.135.135
   port: 6379
 
 
 elasticsearch:
-  url: http://172.19.135.131
+  url: http://172.19.135.135
   user:
   password:
   port: 9200

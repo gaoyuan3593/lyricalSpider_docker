@@ -43,32 +43,38 @@ class WeiBoHotSpider(object):
     def random_num(self):
         return random.uniform(1, 3)
 
-    def save_one_data_to_es(self, data_list):
+    def filter_keyword(self, keyword):
+        mapping = {
+            "query": {
+                "bool":
+                    {
+                        "must":
+                            [{
+                                "term": {"b_keyword.keyword": keyword}}],
+                        "must_not": [],
+                        "should": []}},
+            "sort": [],
+            "aggs": {}
+        }
+        try:
+            result = self.es.dsl_search('weibo_hot_seach_details', "detail_type", mapping)
+            result = json.loads(result)
+            if result.get("hits").get("hits"):
+                return True
+            return False
+        except Exception as e:
+            return False
+
+    def save_one_data_to_es(self, data):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
         :return:
         """
         try:
-
-            for data in data_list:
-                mapping = {
-                    "query": {
-                        "bool":
-                            {
-                                "must":
-                                    [{
-                                        "term": {"b_keyword.keyword": data.get("b_keyword")}}],
-                                "must_not": [],
-                                "should": []}},
-                    "sort": [],
-                    "aggs": {}
-                }
-                result =self.es.dsl_search('weibo_hot_seach_details', "detail_type", mapping)
-                result = json.loads(result)
-                if not result.get("took"):
-                    self.es.insert("weibo_hot_seach_details", data.get("type"), data)
-                    logger.info(" save to es success ！")
+            _type = data.get("type")
+            self.es.insert("weibo_hot_seach_details", _type, data)
+            logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e
 
@@ -140,7 +146,7 @@ class WeiBoHotSpider(object):
 
     def parse_weibo_page_url(self, data):
         """
-        解析当前热搜的所有页的uel
+        解析当前热搜的所有页的url
         :return: list
         """
         if not data:
@@ -233,7 +239,7 @@ class WeiBoHotSpider(object):
             return {}
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
-    def get_comment_data(self, url, weibo_id, user_id):
+    def get_comment_data(self, url, weibo_id, user_id, keyword):
         """
        获取评论信息
        :param url: 评论页url
@@ -248,7 +254,7 @@ class WeiBoHotSpider(object):
             resp = self.requester.get(url).text
             self.next_cookie()
             if "首页" in resp and "消息" in resp:
-                return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
+                return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id, keyword=keyword)
             else:
                 raise HttpInternalServerError
         except Exception as e:
@@ -258,7 +264,7 @@ class WeiBoHotSpider(object):
             return {}
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
-    def get_repost_data(self, url, weibo_id, user_id):
+    def get_repost_data(self, url, weibo_id, user_id, keyword):
         """
        获取转发信息
        :param url: 转发页url
@@ -273,7 +279,7 @@ class WeiBoHotSpider(object):
             resp = self.requester.get(url).text
             self.next_cookie()
             if "首页" in resp and "消息" in resp:
-                return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
+                return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id, keyword=keyword)
             else:
                 raise HttpInternalServerError
         except Exception as e:
@@ -437,6 +443,8 @@ class WeiBoHotSpider(object):
                 len_num = len(raw.contents[3].contents)
                 index = raw.contents[1].text.strip() if raw.contents[1].text.strip() else "置顶"
                 keyword = raw.contents[3].contents[1].text
+                if self.filter_keyword(keyword):
+                    continue
                 search_num = "无" if len_num <= 3 else raw.contents[3].contents[3].text
                 mark = raw.contents[5].text.strip()
                 r_url = raw.contents[3].contents[1].attrs.get("href")

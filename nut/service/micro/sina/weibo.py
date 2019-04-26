@@ -80,7 +80,7 @@ class WeiBoSpider(object):
                 return data
             url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g".format(self.params)
             response = self.requester.get(url=url, header_dict=self.headers)
-            if "抱歉，未找到“{}”相关结果。".format(self.params) in response.text:
+            if "抱歉，未找到“{}”相关结果。".format(self.params) in response.text or "您可以尝试更换关键词，再次搜索" in response.text:
                 return dict(
                     status=-1,
                     message="抱歉，未找到“{}”相关结果。".format(self.params)
@@ -683,7 +683,6 @@ if __name__ == "__main__":
             work.join()
         threads = []
 
-
     comment_url_list, repost_url_list = wb.parse_comment_or_repost_url(weibo_detail_list)
 
     if comment_url_list or repost_url_list:
@@ -729,4 +728,3 @@ if __name__ == "__main__":
         threads.append(worker)
     for work in threads:
         work.join()
-

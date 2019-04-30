@@ -70,6 +70,8 @@ def str_to_format_time(_str):
                 _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
         elif "年" in _str:
             _str = (_str.split("年")[0].split("-")[1] + "-" + _str.split("年")[1]).strip("\'")
+            if "年" in _str:
+                _str = (_str.split("年")[0].split("-")[1] + _str.split("年")[1]).strip("\'")
         return _str
     except Exception as e:
         return _str
@@ -87,8 +89,11 @@ def date_all(begin_date, end_date):
 
 def date_next(params):
     start_hours = "0"
-    q, _date = params.split("|")
     url_list = []
+    q = params.get("q")
+    _date = params.get("date")
+    if not _date:
+        _date = datetime.now().strftime("%Y-%m-%d")
     if ":" in _date:
         start_date, end_date = _date.split(":")
         date_list = date_all(start_date, end_date)
@@ -111,3 +116,9 @@ def date_next(params):
             url_list.append(url)
 
     return url_list
+
+
+if __name__ == '__main__':
+    a = '2019-2018年04-28 11:48'
+    b = str_to_format_time(a )
+    print(b)

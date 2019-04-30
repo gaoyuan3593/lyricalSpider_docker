@@ -25,7 +25,13 @@ def weibo_hot_run():
     if data_list:
         for data in data_list:
             # 解析每个热搜的所有页的url
-            page_data_url_list.extend(wb.parse_weibo_page_url(data))
+            #page_data_url_list.extend(wb.parse_weibo_page_url(data))
+            worker = WorkerThread(page_data_url_list, wb.parse_weibo_page_url, (data,))
+            worker.start()
+            threads.append(worker)
+        for work in threads:
+            work.join()
+        threads = []
     if page_data_url_list:
         for page_url_data in page_data_url_list:
             # 获取每页内容的html
@@ -102,3 +108,7 @@ def weibo_hot_run():
         threads.append(worker)
     for work in threads:
         work.join()
+
+
+if __name__ == '__main__':
+    weibo_hot_run()

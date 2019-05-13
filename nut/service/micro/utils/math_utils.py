@@ -59,8 +59,11 @@ def str_to_format_time(_str):
         if "秒前" in _str:
             _str = (datetime.now() + timedelta(minutes=-1)).strftime("%Y-%m-%d %H:%M")
         elif "分钟前" in _str:
-            fen = int(_str.split("分钟前")[0])
-            _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
+            if "来自主持人的推荐" in _str:
+                _str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            else:
+                fen = int(_str.split("分钟前")[0])
+                _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
         elif "今天" in _str:
             today = _str.split("今天")[1]
             _str = (datetime.now()).strftime("%Y-%m-%d ") + today
@@ -74,7 +77,7 @@ def str_to_format_time(_str):
                 _str = (_str.split("年")[0].split("-")[1] + _str.split("年")[1]).strip("\'")
         return _str
     except Exception as e:
-        return _str
+        return (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
 
 
 def date_all(begin_date, end_date):
@@ -119,6 +122,6 @@ def date_next(params):
 
 
 if __name__ == '__main__':
-    a = '2019-2018年04-28 11:48'
-    b = str_to_format_time(a )
+    a = '来自主持人的推荐 ; 26分钟前'
+    b = str_to_format_time(a)
     print(b)

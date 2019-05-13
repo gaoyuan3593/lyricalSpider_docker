@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import json
 import random
+import time
 import urllib.request
 from datetime import datetime, date
 from http.client import IncompleteRead
@@ -9,11 +10,13 @@ from urllib.parse import urlencode
 
 import requests
 import requests.adapters
+from requests.exceptions import ProxyError, SSLError, Timeout, HTTPError
 
 from service import logger
 from service.core.utils.customerized_data_type import enum
 from service.exception import retry
 from service.exception.exceptions import *
+from service.utils.yaml_tool import get_by_name_yaml
 
 HTTP_METHODS = enum(
     get='GET',
@@ -108,10 +111,18 @@ class Requester(object):
 
     def use_proxy(self, proxy=None):
         if proxy:
-            http_proxy = "http://" + proxy
-            https_proxy = "https://" + proxy
-            proxies = {'http': http_proxy, 'https': https_proxy}
-            self.s.proxies = proxies
+            proxies = proxy
+        else:
+            conf = get_by_name_yaml("proxy")
+            proxym_meta = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
+                "host": conf["host"],
+                "port": conf["port"],
+                "user": conf["user"],
+                "pass": conf["password"],
+            }
+            proxies = {'http': proxym_meta, 'https': proxym_meta}
+
+        self.s.proxies = proxies
 
     @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
                                       ServiceUnavailableError, BadRequestError), time_to_sleep=1)
@@ -124,7 +135,8 @@ class Requester(object):
             self.exception(resp.status_code)
 
             return resp
-        except Exception as e:
+        except (ProxyError, SSLError, HTTPError, Timeout) as e:
+            time.sleep(random.uniform(1, 2))
             logger.exception('http get exception: {}'.format(url))
             raise e
 
@@ -168,8 +180,11 @@ class Requester(object):
     def exception(self, status_code):
         if status_code in [200, 204]:
             pass
-        elif status_code in [400, 401, 402, 403, 404, 405, 406, 407, 409, 410, 411, 412, 413, 414,
-                             415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 429, 431, 444,
+        elif status_code in [429, 407]:
+            time.sleep(random.uniform(0.5, 1.5))
+            self.use_proxy()
+        elif status_code in [400, 401, 402, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414,
+                             415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 431, 444,
                              449, 450, 451, 499, 500, 503, 507, 510, 511]:
             self.use_proxy()
             raise ServiceUnavailableError()

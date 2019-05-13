@@ -5,10 +5,10 @@ import glob
 from setuptools import setup, find_packages
 
 setup(
-    name='nut-spider',
+    name='lyrcal-spider',
     version='1.0.0',
     license="BSD",
-    description='nut spider micro service for basic info',
+    description='nut spider micro service',
     author='#',
     author_email='#',
     url='#',

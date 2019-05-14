@@ -12,7 +12,7 @@ Base = declarative_base()
 
 
 class DataSource(Base):
-    __tablename__ = 'data_sources'
+    __tablename__ = 'data_source'
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     service = Column(String(50), nullable=False)

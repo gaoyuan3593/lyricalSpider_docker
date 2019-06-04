@@ -109,6 +109,9 @@ class Requester(object):
     def cookie(self):
         return requests.utils.dict_from_cookiejar(self.s.cookies)
 
+    def clear_cookie(self):
+        self.s.cookies.clear()
+
     def use_proxy(self, proxy=None):
         if proxy:
             proxies = proxy

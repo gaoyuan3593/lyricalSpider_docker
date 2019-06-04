@@ -1,22 +1,17 @@
-#! /usr/bin/python3
-# -*- coding: utf-8 -*-
-
-
 import threading
 from threading import Thread, Semaphore
 from service import logger
-from service.db.utils.redis_utils import WEIBO_REPOST_QQ, WEIBO_COMMENT_QQ, WEIBO_USER_QQ
 
 __author__ = 'gaoyuan'
 
 THREAD_JOIN_TIMEOUT = 1
-MAX_THREADS_NUM = 5
+MAX_THREADS_NUM = 100
 threads_sem = Semaphore(MAX_THREADS_NUM)
 
 
-class WorkerThread(Thread):
+class WorkerThreadParse(Thread):
     def __init__(self, raw_data_list, func, args=None):
-        super(WorkerThread, self).__init__()
+        super(WorkerThreadParse, self).__init__()
         self.raw_data_list = raw_data_list
         self.func = func
         self.args = args
@@ -24,7 +19,7 @@ class WorkerThread(Thread):
     def start(self):
         logger.info('Before running active threading count: {}'.format(threading.active_count()))
         threads_sem.acquire()
-        super(WorkerThread, self).start()
+        super(WorkerThreadParse, self).start()
 
     def run(self):
         import logbook
@@ -45,19 +40,19 @@ if __name__ == '__main__':
 
     _lis = []
     def test(i):
-        #print(i, "执行函数")
+        print(i, "执行函数")
         # if i == 5:
         #     print("出错了")
         #     raise TimeoutError
-        time.sleep(2)
+        #time.sleep(2)
 
 
     print(id(threads_sem))
     threads = []
     count = 0
 
-    for i in range(1, 100):
-        worker = WorkerThread([], test, (i,))
+    for i in range(1, 1000):
+        worker = WorkerThreadParse([], test, (i,))
         try:
             worker.start()
         except Exception as e:

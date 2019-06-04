@@ -1,10 +1,13 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
+
+from service import logger
 import threadpool
-from micro.literature.cnki_app import CnkiSpider
+from service.micro.literature.cnki_app import CnkiSpider
 
 
 def cnki_run():
+    logger.info("lierature it cnki run start")
     for key_word in ["国际新闻界", "新闻与传播研究", "新闻大学", "现代传播"]:
         cn = CnkiSpider(key_word)
         url_list, threads = [], []

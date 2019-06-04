@@ -5,7 +5,7 @@ import datetime
 import random
 from apscheduler.schedulers.blocking import BlockingScheduler
 from service import logger
-from service.micro.sina.weibo import WeiBoSpider
+from service.micro.sina.weibo_keyword import WeiBoSpider
 
 
 def run_weibo_tasks():

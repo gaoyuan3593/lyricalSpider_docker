@@ -146,6 +146,15 @@ def get_redis_key(k):
         return None
 
 
+# 微博评论qq
+WEIBO_COMMENT_QQ = RedisQueue('weibo_comment_qq', namespace='weibo_comment_qq')
+
+# 微博转发qq
+WEIBO_REPOST_QQ = RedisQueue('weibo_repost_qq', namespace='weibo_repost_qq')
+
+# 微博用户qq
+WEIBO_USER_QQ = RedisQueue('weibo_user_qq', namespace='weibo_user_qq')
+
 if __name__ == '__main__':
     # conn = RedisClient('accounts', 'weibo')
     # conn_cookie = RedisClient('cookies', 'weibo')
@@ -154,4 +163,6 @@ if __name__ == '__main__':
     # result2 = conn_cookie.get(user)
     # print(result)
 
-    get_redis_key("page_id")
+    #get_redis_key("page_id")
+    print(WEIBO_REPOST_QQ.qsize())
+    print(WEIBO_COMMENT_QQ.qsize())

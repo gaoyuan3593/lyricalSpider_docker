@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 from service.db.utils.redis_utils import RedisQueue
-from service.micro.sina.weibo import WeiBoSpider
+from service.micro.sina.weibo_keyword import WeiBoSpider
 from service.micro.utils.threading_ import WorkerThread
 
 page_qq = RedisQueue('page_id', namespace='page_id')
@@ -106,4 +106,3 @@ def run(weibo_obj):
 if __name__ == '__main__':
     # run("奔驰女车主公开录音原因")
     run("西安奔驰维权")
-

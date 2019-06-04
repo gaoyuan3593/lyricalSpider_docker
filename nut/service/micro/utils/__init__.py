@@ -1004,3 +1004,7 @@ Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Trident/4.0; QQDownload 718) 
 
 def ua():
     return random.choice(USER_AGENTS.split("\n"))
+
+
+if __name__ == '__main__':
+    ua()

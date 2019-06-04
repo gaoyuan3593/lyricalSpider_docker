@@ -48,3 +48,12 @@ class RequestFailureError(GenericAppError):
         self.message = msg
 
         self.status_code = status_code
+
+
+class CaptchaVerifiedError(GenericAppError):
+    def __init__(self, err_code=50006, msg='图形验证码错误!', data=None, status_code=200):
+        self.code = err_code
+        self.message = msg
+        self.data = data
+
+        self.status_code = status_code

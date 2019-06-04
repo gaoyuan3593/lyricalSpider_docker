@@ -14,11 +14,11 @@ def not_found(error):
     return resp_404()
 
 
-@app.route('/pandora/<service_type>', methods=['GET'])
+@app.route('/lyrical/<service_type>', methods=['GET'])
 def get_result(service_type):
     ds = get_data_source_with_service(service_type)
     handler = get_module_from_service(service_type, ds.handler)
+    data = get_request_data(request)
     obj = handler.get_handler(data)
     result = obj.query()
-    data = get_request_data(request)
     return resp_ok(result)

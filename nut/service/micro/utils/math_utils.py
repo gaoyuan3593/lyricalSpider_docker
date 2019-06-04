@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import re
 from service import logger
 from datetime import datetime, timedelta
 
@@ -56,25 +57,46 @@ def str_to_format_time(_str):
         return
     from datetime import datetime, timedelta
     try:
-        if "秒前" in _str:
+        if "来自主持人的推荐" in _str:
+            _str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        elif "秒前" in _str:
             _str = (datetime.now() + timedelta(minutes=-1)).strftime("%Y-%m-%d %H:%M")
         elif "分钟前" in _str:
-            if "来自主持人的推荐" in _str:
-                _str = datetime.now().strftime("%Y-%m-%d %H:%M")
-            else:
-                fen = int(_str.split("分钟前")[0])
-                _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
+            fen = int(_str.split("分钟前")[0])
+            _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
         elif "今天" in _str:
             today = _str.split("今天")[1]
             _str = (datetime.now()).strftime("%Y-%m-%d ") + today
         elif "月" in _str:
-            _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
-            if len(_str) < 16:
-                _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
-        elif "年" in _str:
-            _str = (_str.split("年")[0].split("-")[1] + "-" + _str.split("年")[1]).strip("\'")
             if "年" in _str:
-                _str = (_str.split("年")[0].split("-")[1] + _str.split("年")[1]).strip("\'")
+                _str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")
+            else:
+                _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
+                if len(_str) < 16:
+                    _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
+        else:
+            _str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return _str
+    except Exception as e:
+        return (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
+
+
+def sougou_str_to_format_time(_str):
+    if not _str:
+        return
+    from datetime import datetime, timedelta
+    try:
+        if "分钟前" in _str:
+            fen = int(_str.split("分钟前")[0])
+            _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
+        elif "小时" in _str:
+            hours = int(re.findall(r"\d+", _str)[0])
+            _str = (datetime.now() + timedelta(hours=-hours)).strftime("%Y-%m-%d %H:%M")
+        elif "天" in _str:
+            days = int(re.findall(r"\d+", _str)[0])
+            _str = (datetime.now() + timedelta(days=-days)).strftime("%Y-%m-%d %H:%M")
+        else:
+            _str = datetime.now().strftime("%Y-%m-%d %H:%M")
         return _str
     except Exception as e:
         return (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
@@ -91,7 +113,7 @@ def date_all(begin_date, end_date):
 
 
 def date_next(params):
-    start_hours = "0"
+    start_hours, _str_date = "0", ""
     url_list = []
     q = params.get("q")
     _date = params.get("date")
@@ -99,6 +121,11 @@ def date_next(params):
         _date = datetime.now().strftime("%Y-%m-%d")
     if ":" in _date:
         start_date, end_date = _date.split(":")
+        if start_date.count("-") == 3 or end_date.count("-") == 3:
+            url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
+                                                                                                         _date)
+            url_list.append(url)
+            return url_list
         date_list = date_all(start_date, end_date)
         s_y, s_m, s_d = start_date.split('-')
         for date in date_list:
@@ -122,6 +149,7 @@ def date_next(params):
 
 
 if __name__ == '__main__':
-    a = '来自主持人的推荐 ; 26分钟前'
-    b = str_to_format_time(a)
+    # a = '2013年09月23日 20:08 '
+    a = '23小时前'
+    b = sougou_str_to_format_time(a)
     print(b)

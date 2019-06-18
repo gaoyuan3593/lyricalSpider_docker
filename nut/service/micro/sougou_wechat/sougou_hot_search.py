@@ -44,7 +44,7 @@ class SouGouHotSpider(object):
         self.requester = Requester(cookie=dict_to_cookie_jar(cookie_dic), timeout=15)
 
     def random_num(self):
-        return random.uniform(1, 2)
+        return random.uniform(1, 10)
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -89,6 +89,28 @@ class SouGouHotSpider(object):
         except Exception as e:
             raise e
 
+    def filter_keyword_to_sougou(self, _type, _dic):
+        mapping = {
+            "query": {
+                "bool":
+                    {
+                        "must":
+                            [{
+                                "term": _dic}],
+                        "must_not": [],
+                        "should": []}},
+            "sort": [],
+            "aggs": {}
+        }
+        try:
+            result = self.es.dsl_search(SOUGOU_KEYWORD_DETAIL, _type, mapping)
+            if result.get("hits").get("hits"):
+                logger.info("dic : {} is existed".format(_dic))
+                return True
+            return False
+        except Exception as e:
+            return False
+
     def get_sougou_hot_seach(self):
         logger.info('Processing get weibo hot search list!')
         url = 'https://weixin.sogou.com/'
@@ -108,6 +130,10 @@ class SouGouHotSpider(object):
             data_list = data_obj.find("ol", attrs={"id": "topwords"}).find_all("li")
             for raw in data_list:
                 keyword = raw.find("a").attrs.get("title")
+                _dic = {"b_keyword.keyword": keyword}
+                _type = "detail"
+                if self.filter_keyword_to_sougou(_type, _dic):
+                    continue
                 url = raw.find("a").attrs.get("href")
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
@@ -128,7 +154,7 @@ class SouGouHotSpider(object):
             'Host': 'weixin.sogou.com'
         }
         try:
-            #time.sleep(self.random_num())
+            time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
             response.encoding = "utf-8"
             if "没有找到相关的微信公众号文章。" in response.text:
@@ -151,7 +177,7 @@ class SouGouHotSpider(object):
             if e.code == 500006:
                 raise e
             time.sleep(self.random_num())
-            self.requester.use_proxy()
+            # self.requester.use_proxy()
             self.requester.clear_cookie()
             self.next_cookie()
             raise RequestFailureError
@@ -243,20 +269,18 @@ class SouGouHotSpider(object):
                 'Host': 'weixin.sogou.com',
                 "Upgrade-Insecure-Requests": "1",
             }
-            #time.sleep(self.random_num())
+            time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
             response.encoding = "utf-8"
             if "没有找到相关的微信公众号文章" in response.text:
                 return
-            if keyword in response.text and '<ul class="searchnav" name="scroll-nav">' in response.text:
-                logger.info("get weixin page data success ！！！ ")
-                return dict(data=response.text, keyword=keyword, url=url)
-            else:
-                logger.info("keyword not in data")
-            if "当前只显示100条结果，请您：" in response.text:
+            elif "当前只显示100条结果，请您：" in response.text:
                 logger.error("需要扫码登录")
                 raise HttpInternalServerError
-            if "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
+            elif keyword in response.text and '<ul class="searchnav" name="scroll-nav">' in response.text:
+                logger.info("get weixin page data success ！！！ ")
+                return dict(data=response.text, keyword=keyword, url=url)
+            elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
                 if is_ok:
@@ -268,7 +292,7 @@ class SouGouHotSpider(object):
             if e.code == 500006:
                 raise e
             time.sleep(self.random_num())
-            self.requester.use_proxy()
+            #self.requester.use_proxy()
             self.requester.clear_cookie()
             self.next_cookie()
             raise HttpInternalServerError
@@ -285,7 +309,7 @@ class SouGouHotSpider(object):
                 return {}
             url = data.get("url")
             headers = {
-                'user-agent': ua(),
+                'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
                 'connection': 'keep-alive',
                 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
                 'accept-encoding': 'gzip, deflate, br',
@@ -295,12 +319,15 @@ class SouGouHotSpider(object):
             time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
             response.encoding = "utf-8"
-            if data.get("author") in response.text:
+            resp_obj = BeautifulSoup(response.text, 'html.parser')
+            page_url_obj = resp_obj.find("div", attrs={"id": "meta_content"})
+            if page_url_obj:
                 logger.info("get weixin article details success ！！！")
                 data.update(data=response.text)
-                return data
-            if "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                print(response.text)
+                self.parse_weixin_article_detail(data)
+            elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
+                time.sleep(18000)
+                raise HttpInternalServerError
             else:
                 logger.error('get weibo detail failed !')
                 raise HttpInternalServerError
@@ -450,7 +477,7 @@ if __name__ == "__main__":
             url_list.extend(weichat.get_weixin_page_url(keyword_data))
         except:
             continue
-    for url_data in url_list:
+    for url_data in url_list[:100]:
         try:
             data = weichat.get_weixin_page_data(url_data)
             if data:
@@ -472,24 +499,28 @@ if __name__ == "__main__":
                 threads.append(work)
     threads = []
     for article_data in weixin_article_url_list:
-        worker = WorkerThread(article_detail_list, weichat.get_weixin_article_details, (article_data,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
+        try:
+            article_detail_list.append(weichat.get_weixin_article_details(article_data))
+        except Exception as e:
+            continue
+    #     worker = WorkerThread(article_detail_list, weichat.get_weixin_article_details, (article_data,))
+    #     worker.start()
+    #     threads.append(worker)
+    # for work in threads:
+    #     work.join(1)
+    #     if work.isAlive():
+    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+    #         threads.append(work)
 
     threads = []
     for article in article_detail_list:
-       #weichat.parse_weixin_article_detail(article)
-        worker = WorkerThread([], weichat.parse_weixin_article_detail, (article,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
+       weichat.parse_weixin_article_detail(article)
+    #     worker = WorkerThread([], weichat.parse_weixin_article_detail, (article,))
+    #     worker.start()
+    #     threads.append(worker)
+    # for work in threads:
+    #     work.join(1)
+    #     if work.isAlive():
+    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+    #         threads.append(work)
 

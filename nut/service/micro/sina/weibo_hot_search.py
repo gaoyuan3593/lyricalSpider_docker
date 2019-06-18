@@ -66,6 +66,8 @@ class WeiBoHotSpider(object):
                     self.es.update(WEIBO_HOT_SEACH, _type, result.get("hits").get("hits")[0].get("_id"), data)
                     logger.info("dic : {}, update success".format(_dic))
                     return True
+                elif _type == "repost_type":
+                    return False
                 else:
                     logger.info("dic : {} is existed".format(_dic))
                     return True
@@ -296,22 +298,23 @@ class WeiBoHotSpider(object):
        :return:
        """
         headers = {
-            "User-Agent": ua()
+            "User-Agent": ua(),
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3",
+            "accept-encoding": "gzip, deflate, br",
         }
         try:
             random_time = self.random_num()
             time.sleep(random_time)
-            resp = self.requester.get(url).text
             self.next_cookie()
+            resp = self.requester.get(url, header_dict=headers).text
             if "首页" in resp and "消息" in resp:
                 return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
             else:
                 raise HttpInternalServerError
         except Exception as e:
-            if e.args or e.code:
-                self.next_cookie()
-                self.requester.use_proxy()
-                raise HttpInternalServerError
+            self.requester.use_proxy()
+            self.next_cookie()
+            raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_repost_data(self, url, weibo_id, user_id):

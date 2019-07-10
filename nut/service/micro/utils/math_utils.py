@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-
+import random
 import re
 from service import logger
 from datetime import datetime, timedelta
@@ -78,7 +78,89 @@ def str_to_format_time(_str):
             _str = datetime.now().strftime("%Y-%m-%d %H:%M")
         return _str
     except Exception as e:
-        return (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+
+
+def people_str_to_format_time(_str):
+    try:
+        if isinstance(_str, list):
+            _str = "".join(_str).strip()
+            old_str = _str.split("来源")[0].strip()
+            _str = old_str.split("年")[0] + "-" + old_str.split("年")[1].replace("月", "-").replace("日", " ")
+            return _str
+    except:
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+
+
+def china_str_to_format_time(_str):
+    try:
+        if isinstance(_str, list):
+            _str = "".join(_str).strip()
+            if "年" in _str or "月" in _str:
+                _str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")
+                return _str
+            elif "发布时间" in _str:
+                old_str = re.findall(r"(\d+-\d+-\d+.\d+:\d+)", _str)[0]
+                if len(old_str) > 16:
+                    old_str = old_str[:-3]
+                return old_str
+            elif "时间" in _str:
+                old_str = re.findall(r"(\d+-\d+-\d+)", _str)[0]
+                if len(old_str) < 16:
+                    old_str = old_str + (datetime.now() + timedelta(minutes=--random.uniform(1, 10))).strftime(" %H:%M")
+                return old_str
+    except:
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+
+
+def xinhua_str_to_format_time(_str):
+    try:
+        if isinstance(_str, list):
+            _str = "".join(_str).strip()
+            if "年" in _str or "月" in _str:
+                _new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")[:-3]
+                return _new_str
+            _str = _str[:-3]
+            return _str
+    except:
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+
+
+def china_news_str_to_format_time(_str):
+    try:
+        if isinstance(_str, list):
+            _str = "".join(_str).strip()
+            if "年" in _str or "月" in _str:
+                _new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")[:-3]
+                return _new_str
+            if len(_str) > 16:
+                _str = _str[:-3]
+            else:
+                return _str
+            return _str
+        elif isinstance(_str, str):
+            new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "") +\
+                      (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime(" %H:%M")
+            return new_str
+    except:
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+
+
+def chinadaily_str_to_format_time(_str):
+    try:
+        if isinstance(_str, list):
+            if "月" in "".join(_str) and "日" in "".join(_str):
+                _str = "".join(_str).strip()
+                year = datetime.now().strftime("%Y")
+                time = datetime.now().strftime(" %H:%M")
+                _new_str = year + "-" + _str.replace("月", "-").replace("日", "") + time
+                return _new_str
+            else:
+                _str = _str[-1].strip()
+                return _str
+
+    except:
+        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
 
 
 def sougou_str_to_format_time(_str):
@@ -150,6 +232,6 @@ def date_next(params):
 
 if __name__ == '__main__':
     # a = '2013年09月23日 20:08 '
-    a = '23小时前'
-    b = sougou_str_to_format_time(a)
+    a = ['发布时间：2019-06-19 15:54\xa0\xa0来源：消费日报网\xa0\xa0 ']
+    b = xfrb_str_to_format_time(a)
     print(b)

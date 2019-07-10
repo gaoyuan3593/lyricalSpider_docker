@@ -62,12 +62,10 @@ class WeiBoHotSpider(object):
         try:
             result = self.es.dsl_search(WEIBO_HOT_SEACH, _type, mapping)
             if result.get("hits").get("hits"):
-                if _type == "detail_type" or _type == "user_type":
+                if _type == "detail_type":
                     self.es.update(WEIBO_HOT_SEACH, _type, result.get("hits").get("hits")[0].get("_id"), data)
                     logger.info("dic : {}, update success".format(_dic))
                     return True
-                elif _type == "repost_type":
-                    return False
                 else:
                     logger.info("dic : {} is existed".format(_dic))
                     return True
@@ -303,15 +301,19 @@ class WeiBoHotSpider(object):
             "accept-encoding": "gzip, deflate, br",
         }
         try:
+            logger.info('Processing get comment data!')
             random_time = self.random_num()
             time.sleep(random_time)
             self.next_cookie()
             resp = self.requester.get(url, header_dict=headers).text
             if "首页" in resp and "消息" in resp:
+                logger.info("get_comment_data success weibo_id:{}".format(weibo_id))
                 return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
             else:
+                logger.error("get_comment_data falied")
                 raise HttpInternalServerError
         except Exception as e:
+            time.sleep(1)
             self.requester.use_proxy()
             self.next_cookie()
             raise HttpInternalServerError

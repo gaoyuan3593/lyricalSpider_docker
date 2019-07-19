@@ -22,3 +22,14 @@ def get_result(service_type):
     obj = handler.get_handler(data)
     result = obj.query()
     return resp_ok(result)
+
+
+@app.route('/lyrical/keyword', methods=['GET'])
+def get_search_keywords():
+    service_type = request.path.split("/")[-1]
+    ds = get_data_source_with_service(service_type)
+    handler = get_module_from_service(service_type, ds.handler)
+    data = get_request_data(request)
+    obj = handler.get_handler(data)
+    result = obj._run()
+    return resp_ok(result)

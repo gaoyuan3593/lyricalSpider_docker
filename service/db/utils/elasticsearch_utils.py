@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+from service.db.utils.es_mappings import *
 from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
 from elasticsearch import Elasticsearch
@@ -9,7 +10,7 @@ from elasticsearch import Elasticsearch
 conf = get_by_name_yaml('elasticsearch')
 
 
-class ElasticsearchClient(object):
+class ElasticsearchClient(Elasticsearch):
     def __init__(self):
         """
         初始化 Elasticsearch 连接
@@ -24,8 +25,28 @@ class ElasticsearchClient(object):
         :param ignore: 默认返回400
         :return:
         """
-
-        return self.es.indices.create(index_name, ignore=ignore)
+        _index_mappings = {
+            "mappings": {
+                "detail_type":
+                    {
+                        "properties": WEIBO_DETAIL_MAPPING
+                    },
+                "comment_type":
+                    {
+                        "properties": WEIBO_COMMENT_MAPPING
+                    },
+                "repost_type":
+                    {
+                        "properties": WEIBO_REPOST_MAPPING
+                    },
+                "user_type":
+                    {
+                        "properties": WEIBO_USERINFO_MAPPING
+                    }
+            }
+        }
+        if self.es.indices.exists(index=index_name) is not True:
+            return self.es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)
 
     def delete_index(self, index_name, ignore=[400, 404]):
         """
@@ -46,17 +67,6 @@ class ElasticsearchClient(object):
         """
         return self.es.index(index_name, doc_type=doc_type, body=body)
 
-    def create(self, index_name, doc_type, id, body):
-        """
-        插入指定id数据
-        :param index: 索引名称
-        :param doc_type: 文本类型
-        :param id: 数据id
-        :param body: 内容
-        :return:
-        """
-        return self.es.create(index_name, doc_type=doc_type, id=id, body=body)
-
     def update(self, index_name, doc_type, id, body):
         """
         更新指定id数据
@@ -66,7 +76,7 @@ class ElasticsearchClient(object):
         :param body: 内容
         :return:
         """
-        return self.es.update(index_name, doc_type=doc_type, id=id, body=body)
+        return self.es.update(index_name, doc_type=doc_type, id=id, body={"doc": body})
 
     def delete(self, index_name, id):
         """
@@ -77,16 +87,6 @@ class ElasticsearchClient(object):
         """
         return self.es.delete(index_name, id=id)
 
-    def search(self, index_name, doc_type):
-        """
-        查询所有数据
-        :param index_name: 索引名称
-        :param doc_type: 文本类型
-        :return: 当前索引所有数据
-        """
-        result = self.es.search(index_name, doc_type=doc_type)
-        return json.dumps(result, ensure_ascii=False)
-
     def dsl_search(self, index_name, doc_type, dsl):
         """
         通过dsl 全文检索
@@ -96,7 +96,7 @@ class ElasticsearchClient(object):
         :return: json
         """
         result = self.es.search(index_name, doc_type=doc_type, body=dsl)
-        return json.dumps(result, ensure_ascii=False)
+        return result
 
     def helpers(self, action, data):
         """
@@ -114,10 +114,27 @@ class ElasticsearchClient(object):
             pass
 
 
+# 微博
+WEIBO_HOT_SEACH = "weibo_hot_seach"
+WEIBO_KEYWORD_DETAIL = "weibo_keyword_details"
+
+# 搜狗微信
+SOUGOU_KEYWORD_DETAIL = "sougou_keyword_details"
+
+# 百家号
+BSIJISHSO_KRYWORD_DETAIL = "baijiahao_keyword_details"
+
+# 百度贴吧
+BAIDUTIEBA = "baidu_tieba_details"
+
+# 所有新闻网站
+NEWSDETAIL = "news_details"
+
 if __name__ == '__main__':
     import json
 
     es = ElasticsearchClient()
+    es.create_index("weibo_angelababy_zen_me le_156334272")
 
     map = {
         "query": {

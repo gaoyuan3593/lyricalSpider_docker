@@ -15,7 +15,8 @@ from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time, date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, WEIBO_KEYWORD_DETAIL
+from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.micro.keyword import ES_INDEX, hp
 
 
 class WeiBoSpider(object):
@@ -31,9 +32,11 @@ class WeiBoSpider(object):
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Host': 's.weibo.com',
         }
+        self.es_index = self.params.get("weibo_index")
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie, timeout=15)
         self.es = ElasticsearchClient()
+        self.es.create_index(self.es_index)
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'weibo')
@@ -60,7 +63,7 @@ class WeiBoSpider(object):
             "aggs": {}
         }
         try:
-            result = self.es.dsl_search(WEIBO_KEYWORD_DETAIL, _type, mapping)
+            result = self.es.dsl_search(self.es_index, _type, mapping)
             result = json.loads(result)
             if result.get("hits").get("hits"):
                 return True
@@ -78,14 +81,16 @@ class WeiBoSpider(object):
             _type = data.get("type")
             if self.filter_keyword(_type, dic):
                 return
-            self.es.insert(WEIBO_KEYWORD_DETAIL, _type, data)
+            self.es.insert(self.es_index, _type, data)
             logger.info("save to es success data={}！".format(data))
         except Exception as e:
             pass
 
-    def url_threads(self, url_list, keyword):
+    def url_threads(self, dic):
         html_list, threads = [], []
-        for url in url_list:
+        for data in dic:
+            url = data.get("url")
+            keyword = data.get("keyword")
             # 获取每页内容的html
             worker = WorkerThread(html_list, self.get_weibo_page_data, (url, keyword))
             worker.start()
@@ -99,14 +104,12 @@ class WeiBoSpider(object):
         logger.info('Processing get weibo key word ！')
         try:
             url_list = date_next(self.params)
-            keyword = self.params.get("q")
             if isinstance(url_list, list):
                 threads = []
                 html_list, wb_data_list = [], []
                 weibo_detail_list, comment_list, repost_list = [], [], []
-                com_or_re_data_list, user_id_list = [], []
                 user_info_list = []
-                html_list = self.url_threads(url_list, keyword)
+                html_list = self.url_threads(url_list)
                 if html_list:
                     for html_data in html_list:
                         # 解析每页的20微博内容
@@ -116,6 +119,12 @@ class WeiBoSpider(object):
                     for work in threads:
                         work.join()
                     threads = []
+                else:
+                    return dict(
+                        status=1,
+                        index=None,
+                        message="微博暂无数据"
+                    )
 
                 for wb_data in wb_data_list:
                     # 解析微博详情
@@ -123,6 +132,7 @@ class WeiBoSpider(object):
                         continue
                     keyword = wb_data.get("keyword")
                     for data in wb_data.get("data"):
+                        #weibo_detail_list.extend(self.parse_weibo_detail(data, keyword))
                         worker = WorkerThread(weibo_detail_list, self.parse_weibo_detail, (data, keyword))
                         worker.start()
                         threads.append(worker)
@@ -130,7 +140,7 @@ class WeiBoSpider(object):
                         work.join()
                     threads = []
 
-                comment_url_list, repost_url_list = self.parse_comment_or_repost_url(weibo_detail_list)
+                comment_url_list, repost_url_list, user_id_list = self.parse_comment_or_repost_url(weibo_detail_list)
 
                 if comment_url_list or repost_url_list:
                     for data in comment_url_list:  # 所有评论url
@@ -210,8 +220,11 @@ class WeiBoSpider(object):
                     if work.isAlive():
                         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
                         threads.append(work)
-                return dict(status=200,
-                            message="成功！")
+                return dict(
+                    status=200,
+                    index=self.es_index,
+                    message="微博爬取成功！"
+                )
         except Exception as e:
             self.next_cookie()
             raise HttpInternalServerError
@@ -307,13 +320,19 @@ class WeiBoSpider(object):
                     weibo[1].contents[1::2][0].attrs.get("href").split("?")[0].replace("om", "n").split("cn/")[1].split(
                         "/")[1]
                 weibo_time = weibo[1].contents[1].text.strip()
-                platform = weibo[1].contents[3].text.strip() if len(weibo[0].contents) > 3 else ""
+                try:
+                    platform = weibo[1].contents[3].text.strip() if len(weibo[0].contents) > 3 else"微博 weibo.com"
+                except:
+                    platform = "微博 weibo.com"
             else:
                 weibo_id = \
                     weibo[0].contents[1::2][0].attrs.get("href").split("?")[0].replace("om", "n").split("cn/")[1].split(
                         "/")[1]
                 weibo_time = weibo[0].contents[1].text.strip()
-                platform = weibo[0].contents[3].text.strip() if len(weibo[0].contents) > 3 else ""
+                try:
+                    platform = weibo[0].contents[3].text.strip() if len(weibo[0].contents) > 3 else "微博 weibo.com"
+                except:
+                    platform = "微博 weibo.com"
             weibo_num = tag_obj.find_all("div", attrs={"class": "card-act"})[0].contents[1].find_all("li")[
                         1:]  # 评论，转发，赞
             raw_id = tag_obj.find("a", {"class": "name", "suda-data": True})
@@ -328,8 +347,6 @@ class WeiBoSpider(object):
                 contents = content[1].text.split("收起全文")[0].strip()
             else:
                 contents = content[0].text.strip()
-            if keyword not in contents:
-                return
             topic = re.findall("#(.*?)#", contents)  # 关键字
             if "O网页链接" in contents or "随笔" in contents:
                 has_href = 1
@@ -368,6 +385,7 @@ class WeiBoSpider(object):
                 has_href=has_href,  # 是否有网页链接
                 pics=pics,  # 是否有图片
                 videos=videos,  # 是否有视频
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             dic = {"weibo_id.keyword": weibo_id}
             self.save_one_data_to_es(resp_dada, dic)
@@ -389,7 +407,7 @@ class WeiBoSpider(object):
         try:
             random_time = self.random_num()
             time.sleep(random_time)
-            resp = self.requester.get(url).text
+            resp = self.requester.get(url, header_dict=headers).text
             self.next_cookie()
             if "首页" in resp and "消息" in resp and "评论" in resp:
                 return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
@@ -415,7 +433,7 @@ class WeiBoSpider(object):
         try:
             random_time = self.random_num()
             time.sleep(random_time)
-            resp = self.requester.get(url).text
+            resp = self.requester.get(url, header_dict=headers).text
             self.next_cookie()
             if "首页" in resp and "消息" in resp:
                 return dict(data=resp, type="repost_type", weibo_id=weibo_id, user_id=user_id)
@@ -446,8 +464,6 @@ class WeiBoSpider(object):
             response = self.requester.get(url, header_dict=headers).json()
             if response.get("ok") == 1:
                 user_data, containerid = self.parse_user_info(response.get("data", None))
-                dic = {"user_id": uid}
-                self.save_one_data_to_es(user_data, dic)
                 return dict(user_id=uid, data=user_data, containerid=containerid)
             else:
                 return {}
@@ -485,7 +501,7 @@ class WeiBoSpider(object):
                 info_data = dict(profile_data.get("data"), **u_data)
                 self.save_one_data_to_es(info_data, dic)
             else:
-                p_dic = dict(city=None, gender=None, introduction=None, grade=None, registration=None,
+                p_dic = dict(city=None, gender="其他", introduction=None, grade=None, registration=None,
                              birthday=None)
                 user_dic = dict(p_dic, **profile_data.get("data"))
                 self.save_one_data_to_es(user_dic, dic)
@@ -496,7 +512,7 @@ class WeiBoSpider(object):
             raise HttpInternalServerError
 
     def parse_comment_or_repost_url(self, data_list):
-        comment_url_list, repost_url_list = list(), list()
+        comment_url_list, repost_url_list, user_id_list = list(), list(), list()
         try:
             data_list = list(filter(None, data_list))
             for data in data_list:
@@ -514,9 +530,10 @@ class WeiBoSpider(object):
                     repost_url_list.append(dict(user_id=user_id, weibo_id=weibo_id, url_list=[
                         "https://weibo.cn/repost/{}?uid={}&page={}".format(weibo_id, user_id, i) for i in
                         range(1, count)]))
-            return comment_url_list, repost_url_list
+                user_id_list.append(user_id)
+            return comment_url_list, repost_url_list, user_id_list
         except Exception as e:
-            return comment_url_list, repost_url_list
+            return comment_url_list, repost_url_list, user_id_list
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=3)
     def parse_key_user_list(self, data_list):
@@ -760,7 +777,7 @@ class WeiBoSpider(object):
         :return:
         """
         try:
-            user_info, verified = {}, None
+            user_info, verified = {}, "common"
             fan_data = data.get("userInfo")
             con_id_list = data.get("tabsInfo").get("tabs")
             con_id = "".join([i.get("containerid") for i in con_id_list if i.get("tab_type") == "profile"])
@@ -784,7 +801,7 @@ class WeiBoSpider(object):
                 follow_count=follow_count,  # 关注数
                 profile_image_url=profile_image_url,  # 头像url
                 user_name=user_name,
-                verified=verified,  # 大v
+                verified=verified if verified else "common",  # 大v
                 verified_reason=verified_reason,  # 认证信息
                 tags=tags,  # 认证信息
                 weibo_count=statuses_count,  # 微博数
@@ -803,13 +820,13 @@ class WeiBoSpider(object):
         if data.get("ok") == 0:
             return {}
         resp_data = data.get("data").get("cards")[0:2]
-        city, gender, introduction, grade, sign_time, birthday = "", "", "", "", None, ""  # 所在地 性别 简介
+        city, gender, introduction, grade, sign_time, birthday = "", "其他", "", "", None, ""  # 所在地 性别 简介
         for i in resp_data:
             for k in i.get("card_group"):
                 if k.get("item_name") == "简介":
                     introduction = k.get("item_content")
                 elif k.get("item_name") == "性别":
-                    gender = k.get("item_content")
+                    gender = k.get("item_content") if k.get("item_content") else gender
                 elif k.get("item_name") == "所在地":
                     if k.get("item_content") != "其他":
                         city = k.get("item_content").split(" ")[0]

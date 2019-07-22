@@ -1,10 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-from service.config import ENABLE_DEBUG_MODE
+from config import ENABLE_DEBUG_MODE
 
 __version__ = '0.0.1'
 
-import sys, os
+import sys
 import logbook
 
 level = 'debug'

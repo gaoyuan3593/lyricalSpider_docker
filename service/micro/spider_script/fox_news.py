@@ -146,13 +146,12 @@ class FoxNewsSpider(object):
 
 def save_data_to_excel(data_list):
     print("Being data save to excel..")
-    excel_title = ["title", "date", "desc", "contents", "keyword", "img"]
+    excel_title = ["title", "date", "contents", "keyword", "img"]
     _list = []
     for data_dic in data_list:
         _list.append([
             data_dic.get("title", None),
             data_dic.get("date", None),
-            data_dic.get("desc", None),
             data_dic.get("contents", None),
             data_dic.get("keyword", None),
             data_dic.get("img_list", None),
@@ -160,7 +159,7 @@ def save_data_to_excel(data_list):
 
     df = pd.DataFrame(_list, columns=excel_title)
     _time = str(time.time())
-    df.to_excel("{}.xlsx".format("fox_news"), encoding="utf-8", index=False, mode="a")
+    df.to_excel("{}.xlsx".format("fox_news"), encoding="utf-8", index=False)
     print("保存成功...")
 
 

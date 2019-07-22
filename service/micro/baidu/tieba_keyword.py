@@ -8,7 +8,6 @@ import re
 from urllib import parse
 from datetime import datetime
 from bs4 import BeautifulSoup
-from micro.keyword import ES_INDEX, hp
 from service.core.utils.http_ import Requester
 from service.exception import retry
 from service.exception.exceptions import *
@@ -16,6 +15,22 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.threading_ import WorkerThread
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.es_mappings import (TIEBA_DETAIL_MAPPING, TIEBA_COMMENT_MAPPING, TIEBA_USER_MAPPING)
+
+_index_mapping = {
+    "detail_type":
+        {
+            "properties": TIEBA_DETAIL_MAPPING
+        },
+    "comment_type":
+        {
+            "properties": TIEBA_COMMENT_MAPPING
+        },
+    "user_type":
+        {
+            "properties": TIEBA_USER_MAPPING
+        }
+}
 
 
 class TiebaSpider(object):
@@ -85,6 +100,7 @@ class TiebaSpider(object):
                 index=None,
                 message="百度贴吧暂无数据"
             )
+        self.es.create_index(self.es_index, _index_mapping)
         # 获取所有页的html
         for url_dic in url_list:
             worker = WorkerThread(page_data_list, self.get_page_url_data, (url_dic,))
@@ -303,10 +319,10 @@ class TiebaSpider(object):
                     pics=pics,  # 是否有图片
                     imgs=imgs,  # 图片链接
                     b_keywold=keyword,  # 关键字
-                    type="detail",
+                    type="detail_type",
                     tid=tid,  # 贴子id
                     fid=fid,  # 作者id
-                    crawl_time = datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
+                    crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
                 dic = {"tid.keyword": tid}
                 self.save_one_data_to_es(resp_data, dic)
@@ -498,7 +514,7 @@ class TiebaSpider(object):
                 follow_count=follow_count,  # 关注数
                 fan_count=fan_count,  # 粉丝数
                 profile_image_url=profile_image_url,  # 头像url
-                type="user"
+                type="user_type"
             )
             dic = {"author_id.keyword": author_id}
             self.save_one_data_to_es(data, dic)
@@ -555,7 +571,7 @@ class TiebaSpider(object):
                     platform=content_info.get("open_type"),  # 平台
                     replay_no=content_info.get("post_no"),  # 评论楼数
                     comment_num=content_info.get("comment_num"),  # 评论数
-                    type="comment",
+                    type="comment_type",
                     pics=pics,  # 是否有图片
                     img_url=img_url  # 图片url
 

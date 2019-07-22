@@ -105,9 +105,9 @@ class SearchKeyword(object):
             try:
                 self.now_data.update(q=keyword)
                 # 微博
-                self.get_weibo_data(self.now_data)
+                #self.get_weibo_data(self.now_data)
                 # #百家号
-                self.get_baijiahao_data(self.now_data)
+                #self.get_baijiahao_data(self.now_data)
                 # 贴吧
                 self.get_tieba_data(self.now_data)
                 logger.info("task run over.....")

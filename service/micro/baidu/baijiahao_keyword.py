@@ -12,6 +12,14 @@ from service import logger
 from service.micro.utils import ua
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
 from datetime import datetime, timedelta
+from service.db.utils.es_mappings import BAIJIAHAO_DETAIL_MAPPING
+
+_index_mapping = {
+    "detail_type":
+        {
+            "properties": BAIJIAHAO_DETAIL_MAPPING
+        },
+}
 
 
 class BaiJiaHaoSpider(object):
@@ -22,7 +30,6 @@ class BaiJiaHaoSpider(object):
         self.es_index = self.params.get("baijiahao_index")
         self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
-        self.es_index = ""
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -84,6 +91,7 @@ class BaiJiaHaoSpider(object):
                 index=None,
                 message="百家号暂无数据"
             )
+        self.es.create_index(self.es_index, _index_mapping)
         pool = threadpool.ThreadPool(5)
         tasks = threadpool.makeRequests(self.parse_baijiahao_article_detail, acticle_detail_list)
         for task in tasks:
@@ -308,7 +316,7 @@ class BaiJiaHaoSpider(object):
                 b_keyword=resp.get("keyword"),
                 article_text=article_text,
                 article_id=article_id,
-                type="detail",
+                type="detail_type",
                 pics=pics,
                 user_id=user_id,
                 img_url=img_url,

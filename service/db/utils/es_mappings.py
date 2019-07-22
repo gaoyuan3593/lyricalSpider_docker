@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
+# ---------微博mapping--------------
 WEIBO_DETAIL_MAPPING = {
     "weibo_time": {
         "type": "date",
@@ -15,71 +16,76 @@ WEIBO_DETAIL_MAPPING = {
     },
     "weibo_id": {
         "type": "keyword",
-        "index": "not_analyzed"
+        "index": True,
     },
     "mid": {
         "type": "keyword",  # 字符串
-        "index": "not_analyzed"
+        "index": True,
     },
     "user_id": {
         "type": "keyword",
-        "index": "not_analyzed"
+        "index": True,
     },
     "like_num": {
         "type": "long",
-        "index": "not_analyzed"
     },
     "com_num": {
         "type": "long",
-        "index": "not_analyzed"
     },
     "repost_num": {
         "type": "long",
-        "index": "not_analyzed"
     },
     "is_forward": {
         "type": "integer",
     },
     "is_forward_weibo_id": {
-        "type": "text",
-        "index": "not_analyzed"
+        "type": "keyword",
+        "index": True,
     },
     "type": {
         "type": "keyword",
-        "index": "not_analyzed"
+        "index": True,
     },
     "key_user_list": {
         "type": "text",
-        "index": "not_analyzed"
     },
     "forward_user_url_list": {
         "type": "text",
-        "index": "not_analyzed"
     },
     "b_keyword": {
         "type": "keyword",
-        "index": "not_analyzed"
+        "index": True,
     },
     "topic": {
         "type": "text",
-        "index": "not_analyzed"
     },
     "has_href": {
         "type": "long",
-        "index": "not_analyzed"
+        "index": True,
     },
     "pics": {
         "type": "long",
-        "index": "not_analyzed"
+        "index": True,
     },
     "videos": {
         "type": "long",
-        "index": "not_analyzed"
+        "index": True,
     },
     "crawl_time": {
         "type": "date",
         "index": True,
     },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
 }
 
 WEIBO_COMMENT_MAPPING = {
@@ -119,8 +125,18 @@ WEIBO_COMMENT_MAPPING = {
     },
     "key_user_list": {
         "type": "text",
-        "index": "not_analyzed"
     },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
 }
 
 WEIBO_REPOST_MAPPING = {
@@ -156,8 +172,18 @@ WEIBO_REPOST_MAPPING = {
     },
     "key_user_list": {
         "type": "text",
-        "index": "not_analyzed"
     },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
 }
 
 WEIBO_USERINFO_MAPPING = {
@@ -218,4 +244,263 @@ WEIBO_USERINFO_MAPPING = {
     "birthday": {
         "type": "text",
     },
+}
+
+# ------------微信mapping----------------
+
+
+# ------------百度百家号mapping----------------
+BAIJIAHAO_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "author": {
+        "type": "keyword",
+    },
+    "introduction": {
+        "type": "text",
+    },
+    "article_date": {
+        "type": "date",
+        "index": True,
+    },
+    "avatar_img": {
+        "type": "text",  # 字符串
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "article_text": {
+        "type": "text",
+    },
+    "article_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "pics": {
+        "type": "long",
+        "index": True,
+    },
+    "user_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "img_url": {
+        "type": "text",
+    },
+    "article_url": {
+        "type": "text",
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
+# ------------百度贴吧mapping----------------
+TIEBA_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "content": {
+        "type": "text",
+    },
+    "tieba": {
+        "type": "text",
+        "index": True,
+    },
+    "author": {
+        "type": "keyword",
+        "index": True,
+    },
+    "tiezi_time": {
+        "type": "date",
+        "index": True,
+    },
+    "pics": {
+        "type": "long",
+        "index": True,
+    },
+    "b_keywold": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "tid": {
+        "type": "keyword",
+        "index": True,
+    },
+    "fid": {
+        "type": "keyword",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
+TIEBA_COMMENT_MAPPING = {
+    "user": {
+        "type": "keyword",
+        "index": True,
+    },
+    "date": {
+        "type": "date",
+        "index": True,
+    },
+    "replay_text": {
+        "type": "text",
+    },
+    "nick_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "level": {
+        "type": "keyword",
+        "index": True,
+    },
+    "level_name": {
+        "type": "text",
+    },
+    "cur_score": {
+        "type": "text",
+    },
+    "name_u": {
+        "type": "text",
+    },
+    "author_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "replay_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "source": {
+        "type": "keyword",
+        "index": True,
+    },
+    "platform": {
+        "type": "keyword",
+        "index": True,
+    },
+    "replay_no": {
+        "type": "keyword",
+        "index": True,
+    },
+    "comment_num": {
+        "type": "long",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "pics": {
+        "type": "long",
+        "index": True,
+    },
+    "img_url": {
+        "type": "text",
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
+TIEBA_USER_MAPPING = {
+    "user": {
+        "type": "keyword",
+        "index": True,
+    },
+    "nick_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "gender": {
+        "type": "keyword",
+        "index": True,
+    },
+    "tieba_age": {
+        "type": "keyword",
+        "index": True,
+    },
+    "tiezi_num": {
+        "type": "long",
+        "index": True,
+    },
+    "vip_days": {
+        "type": "keyword",
+        "index": True,
+    },
+    "is_vip": {
+        "type": "long",
+        "index": True,
+    },
+    "author_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "follow_count": {
+        "type": "keyword",
+        "index": True,
+    },
+    "fan_count": {
+        "type": "keyword",
+        "index": True,
+    },
+    "profile_image_url": {
+        "type": "text",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    }
 }

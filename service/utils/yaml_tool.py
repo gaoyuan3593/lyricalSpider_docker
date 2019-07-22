@@ -4,8 +4,8 @@ import os
 
 import yaml
 
-from service.config import CONF_FILE_NAME
-from service.config import CONF_PATH
+from config import CONF_FILE_NAME
+from config import CONF_PATH
 from service.utils.file_sys import get_absolute_cur_path
 
 FULL_PATH_CONF_FILE = '%s/%s' % (CONF_PATH, CONF_FILE_NAME)

@@ -76,7 +76,7 @@ def str_to_format_time(_str):
                     _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
         else:
             _str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        return _str
+        return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except Exception as e:
         return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
 
@@ -139,7 +139,7 @@ def china_news_str_to_format_time(_str):
                 return _str
             return _str
         elif isinstance(_str, str):
-            new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "") +\
+            new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "") + \
                       (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime(" %H:%M")
             return new_str
     except:
@@ -206,26 +206,39 @@ def date_next(params):
         if start_date.count("-") == 3 or end_date.count("-") == 3:
             url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
                                                                                                          _date)
-            url_list.append(url)
+            url_list.append(
+                dict(
+                    url=url,
+                    keyword=q
+                ))
             return url_list
         date_list = date_all(start_date, end_date)
         s_y, s_m, s_d = start_date.split('-')
         for date in date_list:
             cu_date = "{}-{}-{}".format(s_y, s_m, str(date.day))
-            if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d"):
+            if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d") or \
+                    datetime.strptime(start_date, "%Y-%m-%d") == datetime.strptime(end_date, "%Y-%m-%d"):
                 for i in range(1, 24):
                     k = start_hours if i == 1 else str(i - 1)
                     _s_date = (cu_date + "-" + k) + ":" + (cu_date + "-" + str(i))
                     url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
                                                                                                                  _s_date)
-                    url_list.append(url)
+                    url_list.append(
+                        dict(
+                            url=url,
+                            keyword=q
+                        ))
     else:
         for i in range(1, 24):
             k = start_hours if i == 1 else str(i - 1)
             _s_date = (_date + "-" + k) + ":" + (_date + "-" + str(i))
             url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
                                                                                                          _s_date)
-            url_list.append(url)
+            url_list.append(
+                dict(
+                    url=url,
+                    keyword=q
+                ))
 
     return url_list
 

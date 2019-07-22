@@ -18,7 +18,7 @@ class ElasticsearchClient(Elasticsearch):
         es_host = "{}:{}/".format(conf["url"], conf["port"])
         self.es = Elasticsearch(hosts=es_host)
 
-    def create_index(self, index_name, ignore=400):
+    def create_index(self, index_name, index_mappings, ignore=400):
         """
         创建一个索引
         :param index_name: 索引名称
@@ -26,24 +26,8 @@ class ElasticsearchClient(Elasticsearch):
         :return:
         """
         _index_mappings = {
-            "mappings": {
-                "detail_type":
-                    {
-                        "properties": WEIBO_DETAIL_MAPPING
-                    },
-                "comment_type":
-                    {
-                        "properties": WEIBO_COMMENT_MAPPING
-                    },
-                "repost_type":
-                    {
-                        "properties": WEIBO_REPOST_MAPPING
-                    },
-                "user_type":
-                    {
-                        "properties": WEIBO_USERINFO_MAPPING
-                    }
-            }
+            "mappings": index_mappings
+
         }
         if self.es.indices.exists(index=index_name) is not True:
             return self.es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)

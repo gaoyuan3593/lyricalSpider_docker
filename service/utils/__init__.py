@@ -17,6 +17,6 @@ def get_module_obj_by_name(module_name, sub_module_name):
 
 
 def get_module_from_service(service_type, handler):
-    from service.config import SERVICE_MODULE_PACKAGE
+    from config import SERVICE_MODULE_PACKAGE
 
     return get_module_obj_by_name('{}.{}'.format(SERVICE_MODULE_PACKAGE, service_type), handler)

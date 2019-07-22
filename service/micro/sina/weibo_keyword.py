@@ -16,7 +16,27 @@ from service.micro.utils.math_utils import str_to_format_time, date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
-from service.micro.keyword import ES_INDEX, hp
+from service.db.utils.es_mappings import (WEIBO_DETAIL_MAPPING, WEIBO_COMMENT_MAPPING, WEIBO_REPOST_MAPPING,
+                                          WEIBO_USERINFO_MAPPING)
+
+_index_mapping = {
+    "detail_type":
+        {
+            "properties": WEIBO_DETAIL_MAPPING
+        },
+    "comment_type":
+        {
+            "properties": WEIBO_COMMENT_MAPPING
+        },
+    "repost_type":
+        {
+            "properties": WEIBO_REPOST_MAPPING
+        },
+    "user_type":
+        {
+            "properties": WEIBO_USERINFO_MAPPING
+        }
+}
 
 
 class WeiBoSpider(object):
@@ -36,7 +56,6 @@ class WeiBoSpider(object):
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie, timeout=15)
         self.es = ElasticsearchClient()
-        self.es.create_index(self.es_index)
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'weibo')
@@ -64,7 +83,8 @@ class WeiBoSpider(object):
         }
         try:
             result = self.es.dsl_search(self.es_index, _type, mapping)
-            result = json.loads(result)
+            if isinstance(result, str):
+                result = json.loads(result)
             if result.get("hits").get("hits"):
                 return True
             return False
@@ -111,6 +131,7 @@ class WeiBoSpider(object):
                 user_info_list = []
                 html_list = self.url_threads(url_list)
                 if html_list:
+                    self.es.create_index(self.es_index, _index_mapping)
                     for html_data in html_list:
                         # 解析每页的20微博内容
                         worker = WorkerThread(wb_data_list, self.parse_weibo_html, (html_data,))
@@ -132,12 +153,12 @@ class WeiBoSpider(object):
                         continue
                     keyword = wb_data.get("keyword")
                     for data in wb_data.get("data"):
-                        #weibo_detail_list.extend(self.parse_weibo_detail(data, keyword))
-                        worker = WorkerThread(weibo_detail_list, self.parse_weibo_detail, (data, keyword))
-                        worker.start()
-                        threads.append(worker)
-                    for work in threads:
-                        work.join()
+                        weibo_detail_list.extend(self.parse_weibo_detail(data, keyword))
+                    #     worker = WorkerThread(weibo_detail_list, self.parse_weibo_detail, (data, keyword))
+                    #     worker.start()
+                    #     threads.append(worker)
+                    # for work in threads:
+                    #     work.join()
                     threads = []
 
                 comment_url_list, repost_url_list, user_id_list = self.parse_comment_or_repost_url(weibo_detail_list)
@@ -305,7 +326,7 @@ class WeiBoSpider(object):
             return {}
         try:
             topic, is_forward_weibo_id, key_user_list, forward_user_url_list = [], None, [], []
-            has_href, pics, videos = None, None, None
+            has_href, pics, videos = 0, 0, 0
             mid = tag_obj.attrs.get("mid")  # 微博id
             is_forward = tag_obj.find_all("div", attrs={"class": "con"})  # 是否是转发微博
             if len(is_forward):
@@ -321,7 +342,7 @@ class WeiBoSpider(object):
                         "/")[1]
                 weibo_time = weibo[1].contents[1].text.strip()
                 try:
-                    platform = weibo[1].contents[3].text.strip() if len(weibo[0].contents) > 3 else"微博 weibo.com"
+                    platform = weibo[1].contents[3].text.strip() if len(weibo[0].contents) > 3 else "微博 weibo.com"
                 except:
                     platform = "微博 weibo.com"
             else:

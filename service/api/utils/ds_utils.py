@@ -1,10 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 from service import logger
-from service.server.main import cache
+#from service.server.main import cache
 
 
-@cache.memoize()
+#@cache.memoize()
 def get_data_source():
     from service.db.model.m_db import DataSource
     from service.server.db import db_session

@@ -23,7 +23,7 @@ class ChinaSpider(object):
         self.title_xpath = data.get("titleXPath")
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
-        self.s =requests.session()
+        self.s = requests.session()
         self.es = ElasticsearchClient()
 
     def filter_keyword(self, _type, _dic, data=None):
@@ -196,11 +196,8 @@ class ChinaSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def china_spider_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "新华网",
         "domain": "http://www.china.com.cn/",
@@ -248,7 +245,11 @@ if __name__ == '__main__':
         ]
     }
     china = ChinaSpider(data)
-    news_url_list = china.get_news_all_url()
+    try:
+        news_url_list = china.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for news_url in news_url_list:
         try:
             detail_list.append(china.get_news_detail(news_url))
@@ -257,3 +258,6 @@ if __name__ == '__main__':
     for _data in detail_list:
         china.parse_news_detail(_data)
 
+
+if __name__ == '__main__':
+    china_spider_run()

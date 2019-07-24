@@ -448,6 +448,7 @@ class WeiBoHotSpider(object):
                 if repost_num:
                     count = 2 if repost_num < 10 else repost_num // 10 + 2
                     self.add_data_to_redis("repost", "{}|{}|{}".format(weibo_id, user_id, count))
+            return
         except Exception as e:
             pass
 

@@ -6,7 +6,7 @@ import sys
 import os
 import datetime
 
-from core.utils.http_ import Requester
+from service.core.utils.http_ import Requester
 
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
@@ -72,7 +72,7 @@ class WeiBoHotSpider(object):
         try:
             result = self.es.dsl_search("weibo_back", _type, mapping)
             if result.get("hits").get("hits"):
-                if _type == "detail_type"or "user_type":
+                if _type == "detail_type" or "user_type":
                     self.es.update("weibo_back", _type, result.get("hits").get("hits")[0].get("_id"), data)
                     logger.info("dic : {}, update success".format(_dic))
                     return True
@@ -454,7 +454,7 @@ class WeiBoHotSpider(object):
                     count = 2 if repost_num < 10 else repost_num // 10 + 2
                     self.add_data_to_redis("repost", "{}|{}|{}".format(weibo_id, user_id, count))
         except Exception as e:
-           pass
+            pass
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=3)
     def parse_key_user_list(self, data_list):
@@ -815,7 +815,7 @@ class WeiBoHotSpider(object):
         return [uid]
 
     def thread_uid_url(self, uid_list):
-        from micro.utils.threading_ import WorkerThread
+        from service.micro.utils.threading_ import WorkerThread
         new_uid_list, threads = [], []
         for uid in uid_list:
             worker = WorkerThread(new_uid_list, self.get_num_user_id, (uid,))
@@ -871,7 +871,7 @@ if __name__ == "__main__":
             threads.append(work)
     threads = []
     if data_list:
-        for data in data_list:
+        for data in data_list[:5]:
             # 解析每个热搜的所有页的url
             worker = WorkerThreadParse(page_data_url_list, wb.parse_weibo_page_url, (data,))
             worker.start()
@@ -913,90 +913,17 @@ if __name__ == "__main__":
             continue
         keyword = wb_data.get("keyword")
         for data in wb_data.get("data"):
-            # weibo_detail_list.append(wb.parse_weibo_detail(data, keyword))
-            worker = WorkerThreadParse(weibo_detail_list, wb.parse_weibo_detail, (data, keyword))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
-        threads = []
+            weibo_detail_list.append(wb.parse_weibo_detail(data, keyword))
+        #     worker = WorkerThreadParse(weibo_detail_list, wb.parse_weibo_detail, (data, keyword))
+        #     worker.start()
+        #     threads.append(worker)
+        # for work in threads:
+        #     work.join(1)
+        #     if work.isAlive():
+        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+        #         threads.append(work)
+        # threads = []
 
     wb.parse_comment_or_repost_url(weibo_detail_list)
-
-    if comment_url_list or repost_url_list:
-        for data in comment_url_list:  # 所有评论url
-            weibo_id = data.get("weibo_id")
-            user_id = data.get("user_id")
-            for url in data.get("url_list"):
-                worker = WorkerThread(comment_or_repost_list, wb.get_comment_data, (url, weibo_id, user_id))
-                worker.start()
-                threads.append(worker)
-
-            for work in threads:
-                work.join(1)
-                if work.isAlive():
-                    logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                    threads.append(work)
-            threads = []
-
-        for data in repost_url_list:  # 所有转发url
-            weibo_id = data.get("weibo_id")
-            user_id = data.get("user_id")
-            for url in data.get("url_list"):
-                worker = WorkerThread(comment_or_repost_list, wb.get_repost_data, (url, weibo_id, user_id))
-                worker.start()
-                threads.append(worker)
-            for work in threads:
-                work.join(1)
-                if work.isAlive():
-                    logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                    threads.append(work)
-            threads = []
-
-    # 解析所有评论和转发信息，评论和转发用户ld列表
-    for data in comment_or_repost_list:
-        if not data:
-            continue
-        if data.get("type") == "comment_type":
-            worker = WorkerThreadParse(user_id_list, wb.parse_comment_data, (data,))
-            worker.start()
-            threads.append(worker)
-        elif data.get("type") == "repost_type":
-            worker = WorkerThreadParse(user_id_list, wb.parse_repost_data, (data,))
-            worker.start()
-            threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
-    threads = []
-
-    # 获取用户个人信息
-    user_url_list = wb.parse_user_info_url(user_id_list)
-    for url_data in user_url_list:
-        worker = WorkerThread(user_info_list, wb.get_user_info, (url_data,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
-    threads = []
-
-    w_true_list = []
-    for user_data in user_info_list:
-        worker = WorkerThread(w_true_list, wb.get_profile_user_info, (user_data,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
 
     print("完成时间 %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))

@@ -1,9 +1,11 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
+import multiprocessing
 from service import logger
 from service.micro.baidu.baijiahao_keyword import BaiJiaHaoSpider
 from service.micro.baidu.tieba_keyword import TiebaSpider
 from service.micro.sina.weibo_keyword import WeiBoSpider
+from service.micro.sougou_wechat.sougou_keyword import SouGouKeywordSpider
 from service.micro.utils.apscheduler_ import TaskApscheduler
 from service.utils.seq_no import generate_seq_no
 from service.micro.keyword.utils.utils import remove_job, resume_job, pause_job
@@ -55,7 +57,9 @@ class SearchKeyword(object):
             index_list = self.retrun_index_name()
             for index in index_list:
                 self.now_data.update(index)
-            result = [index.get("weibo_index") or index.get("baijiahao_index") or index.get("tieba_index")
+            result = [
+                index.get("weibo_index") or index.get("wechat_index") or index.get("baijiahao_index") or index.get(
+                    "tieba_index")
                 for index in index_list]
             task.add_job()
             data_dic.update(
@@ -104,13 +108,12 @@ class SearchKeyword(object):
                 continue
             try:
                 self.now_data.update(q=keyword)
-                # 微博
-                #self.get_weibo_data(self.now_data)
-                # #百家号
-                #self.get_baijiahao_data(self.now_data)
-                # 贴吧
-                self.get_tieba_data(self.now_data)
-                logger.info("task run over.....")
+                func_list = [self.get_weibo_data, self.get_wechat_data, self.get_baijiahao_data, self.get_tieba_data]
+                for func in func_list:
+                    w = multiprocessing.Process(target=func, args=(self.now_data,))
+                    w.start()
+                    w.join(1)
+                logger.info("task id : {} is task run over.....".format(self.task_id or self.seq_no))
             except Exception as e:
                 continue
 
@@ -119,10 +122,12 @@ class SearchKeyword(object):
         _list = []
         keyword = self.keyword_list[0]
         weibo_index = hp(ES_INDEX[0], keyword)
+        wechat_index = hp(ES_INDEX[1], keyword)
         tieba_index = hp(ES_INDEX[2], keyword)
         baijiahao_index = hp(ES_INDEX[3], keyword)
         _list.extend([
             dict(weibo_index=weibo_index.lower(), keyword=keyword),
+            dict(wechat_index=wechat_index.lower(), keyword=keyword),
             dict(tieba_index=tieba_index.lower(), keyword=keyword),
             dict(baijiahao_index=baijiahao_index.lower(), keyword=keyword)
         ])
@@ -141,6 +146,23 @@ class SearchKeyword(object):
                 index=None,
                 message="微博爬取失败"
             )
+        logger.info("weibo keyword: {} , result : {}".format(data, weibo_data))
+        return weibo_data
+
+    def get_wechat_data(self, data):
+        wechat_data = {}
+        try:
+            spider = SouGouKeywordSpider(data)
+            wechat_data = spider.query()
+            return wechat_data
+        except Exception as e:
+            wechat_data.update(
+                status=-1,
+                index=None,
+                message="搜狗微信爬取失败"
+            )
+        logger.info("wechat sougou  keyword : {} , result : {}".format(data, wechat_data))
+        return wechat_data
 
     def get_baijiahao_data(self, data):
         bajihao_data = {}
@@ -154,7 +176,8 @@ class SearchKeyword(object):
                 index=None,
                 message="百家号爬取失败"
             )
-            return bajihao_data
+        logger.info("baijiahao keyword : {} , result : {}".format(data, bajihao_data))
+        return bajihao_data
 
     def get_tieba_data(self, data):
         tieba_data = {}
@@ -169,6 +192,7 @@ class SearchKeyword(object):
                 index=None,
                 message="百度贴吧爬取失败"
             )
+        logger.info("baidu tieba keyword : {} , result : {}".format(data, tieba_data))
         return tieba_data
 
 

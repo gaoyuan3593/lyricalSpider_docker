@@ -15,22 +15,34 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
+from service.micro.utils.threading_ import WorkerThread
 from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
 from service.micro.utils.math_utils import sougou_str_to_format_time, to_json
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, SOUGOU_KEYWORD_DETAIL
+from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
+
+_index_mapping = {
+    "detail_type":
+        {
+            "properties": WECHAT_DETAIL_MAPPING
+        },
+}
 
 
 class SouGouKeywordSpider(object):
     __name__ = 'Sou Gou hot search'
 
-    def __init__(self):
+    def __init__(self, params=None):
+        self.params = params
         self.ua = ua()
         self.cookies = self.get_cookie()
         self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=15)
+        self.es_index = self.params.get("wechat_index")
+        self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'sougou_cookie')
+        redis_cli = RedisClient('cookies', 'wechat')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -60,15 +72,10 @@ class SouGouKeywordSpider(object):
             "aggs": {}
         }
         try:
-            result = self.es.dsl_search(SOUGOU_KEYWORD_DETAIL, _type, mapping)
+            result = self.es.dsl_search(self.es_index, _type, mapping)
             if result.get("hits").get("hits"):
-                if _type == "detail":
-                    self.es.update(SOUGOU_KEYWORD_DETAIL, _type, result.get("hits").get("hits")[0].get("_id"), data)
-                    logger.info("dic : {}, update success".format(_dic))
-                    return True
-                else:
-                    logger.info("dic : {} is existed".format(_dic))
-                    return True
+                logger.info("dic : {} is existed".format(_dic))
+                return True
             return False
         except Exception as e:
             return False
@@ -84,7 +91,7 @@ class SouGouKeywordSpider(object):
             if self.filter_keyword(_type, dic, data):
                 logger.info("is existed  dic: {}".format(dic))
                 return
-            self.es.insert(SOUGOU_KEYWORD_DETAIL, _type, data)
+            self.es.insert(self.es_index, _type, data)
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e
@@ -103,13 +110,62 @@ class SouGouKeywordSpider(object):
             "aggs": {}
         }
         try:
-            result = self.es.dsl_search(SOUGOU_KEYWORD_DETAIL, _type, mapping)
+            result = self.es.dsl_search(self.es_index, _type, mapping)
             if result.get("hits").get("hits"):
                 logger.info("dic : {} is existed".format(_dic))
                 return True
             return False
         except Exception as e:
             return False
+
+    def query(self):
+        threads = []
+        data_list, article_url_list, article_detail_list = [], [], []
+        keyword = self.params.get("q")
+        keyword_dic = self.parse_url_kewword(keyword)
+        url_list = self.get_weixin_page_url(keyword_dic)
+        if not url_list:
+            return dict(
+                status=1,
+                index=None,
+                message="搜狗微信暂无数据"
+            )
+        for url_data in url_list:
+            try:
+                data = self.get_weixin_page_data(url_data)
+                if data:
+                    data_list.append(data)
+            except Exception as e:
+                continue
+        if data_list:
+            for data in data_list:
+                # 解析所有页的文章url
+                worker = WorkerThread(article_url_list, self.parse_weixin_article_url, (data,))
+                worker.start()
+                threads.append(worker)
+            for work in threads:
+                work.join(1)
+                if work.isAlive():
+                    logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+                    threads.append(work)
+        self.es.create_index(self.es_index, _index_mapping)
+        for article_data in article_url_list:
+            try:
+                article_detail_list.append(self.get_weixin_article_details(article_data))
+            except Exception as e:
+                continue
+        return dict(
+            status=200,
+            index=self.es_index,
+            message="搜狗微信获取成功！"
+        )
+
+    def parse_url_kewword(self, keyword):
+        return dict(
+            url='https://weixin.sogou.com/weixin?type=2&s_from=input&query={}&ie=utf8&_sug_=n&_sug_type_='.format(
+                keyword),
+            keyword=keyword
+        )
 
     def get_weibo_hot_seach(self):
         logger.info('Processing get weibo hot search list!')
@@ -155,7 +211,6 @@ class SouGouKeywordSpider(object):
             'Host': 'weixin.sogou.com'
         }
         try:
-            # time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
             response.encoding = "utf-8"
             if "没有找到相关的微信公众号文章。" in response.text:
@@ -178,7 +233,7 @@ class SouGouKeywordSpider(object):
             if e.code == 500006:
                 raise e
             time.sleep(self.random_num())
-            #self.requester.use_proxy()
+            # self.requester.use_proxy()
             self.requester.clear_cookie()
             self.next_cookie()
             raise RequestFailureError
@@ -231,7 +286,7 @@ class SouGouKeywordSpider(object):
         else:
             logger.error('verify captcha code failed. ')
             captcha_code = self.get_captcha_code(keyword)
-            self.verify_captcha_code(captcha_code, keyword)
+            return self.verify_captcha_code(captcha_code, keyword)
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
@@ -360,6 +415,7 @@ class SouGouKeywordSpider(object):
                     _str = _str.replace(",", "")
                 page_num = int(_str) // 10 + 1
                 page_num = 101 if page_num > 100 else page_num
+                page_num = 11
                 for i in range(1, page_num):
                     url = "https://weixin.sogou.com/weixin?query={}&s_from=hotnews&type=2&page={}&ie=utf8".format(
                         keyword, i)
@@ -387,6 +443,9 @@ class SouGouKeywordSpider(object):
             if page_url_obj:
                 for tag_soup in page_url_obj:
                     article_id = tag_soup.attrs.get("d")
+                    dic = {"article_id.keyword": article_id}
+                    if self.filter_keyword("detail_type", dic):
+                        continue
                     author = tag_soup.find("div", attrs={"class": "s-p"}).find("a").text.strip()  # 作者
                     time_chuo = tag_soup.find("span", attrs={"class": "s2"}).text
                     article_date = self.parse_time_chuo(time_chuo)  # 时间
@@ -413,7 +472,7 @@ class SouGouKeywordSpider(object):
         """
         if not resp:
             return
-        pics, img_url, is_share = "", [], ""
+        pics, img_url, is_share = 0, [], 0
         try:
             resp_obj = BeautifulSoup(resp.get("data"), 'html.parser')
             if "阅读全文" in resp.get("data"):
@@ -441,13 +500,14 @@ class SouGouKeywordSpider(object):
                 b_keyword=resp.get("keyword"),
                 article_text=article_text,
                 article_id=article_id,
-                type="detail",
+                type="detail_type",
                 pics=pics,
                 img_url=img_url,
                 wechat_num=wechat_num,
                 profile_meta=profile_meta,
                 is_share=is_share,  # 是否是分享
                 article_url=resp.get("url"),  # 文章链接
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             dic = {"article_id.keyword": article_id}
             self.save_one_data_to_es(data, dic)
@@ -457,14 +517,14 @@ class SouGouKeywordSpider(object):
 
     def parse_time_chuo(self, _time):
         import time
-        import datetime
+        from datetime import datetime
         try:
             int_time = int(re.findall(r'(\d+)', _time)[0])
             time_array = time.localtime(int_time)
-            _time = time.strftime("%Y-%m-%d %H:%M:%S", time_array)
+            _time = time.strftime("%Y-%m-%d %H:%M", time_array)
         except Exception as e:
-            _time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        return _time
+            _time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return datetime.strptime(_time, "%Y-%m-%d %H:%M")
 
 
 if __name__ == "__main__":

@@ -55,7 +55,7 @@ class CgtnSpider(object):
             #print(resp.json())
             if resp.status_code == 200:
                 result = resp.json()
-                num = result.get("total") // 100 + 1
+                num = result.get("total") // 10 + 1
                 return num
             else:
                 raise HttpInternalServerError
@@ -84,7 +84,7 @@ class CgtnSpider(object):
                 "keyword": self.keyword,
                 "dateSort": "false",
                 "curPage": i,
-                "pageSize": 100
+                "pageSize": 10
             }
             try:
                 resp = self.requester.post(url, header_dict=headers, data_dict=data, submission_type="json")

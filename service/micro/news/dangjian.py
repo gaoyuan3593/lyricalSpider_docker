@@ -191,11 +191,8 @@ class DangJianSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def dangjian_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "党建网",
         "domain": "http://www.dangjian.cn/",
@@ -243,7 +240,11 @@ if __name__ == '__main__':
         ]
     }
     china = DangJianSpider(data)
-    news_url_list = china.get_news_all_url()
+    try:
+        news_url_list = china.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for dic in news_url_list:
         try:
             detail_list.append(china.get_news_detail(dic))
@@ -251,3 +252,7 @@ if __name__ == '__main__':
             continue
     for _data in detail_list:
         china.parse_news_detail(_data)
+
+
+if __name__ == '__main__':
+    dangjian_run()

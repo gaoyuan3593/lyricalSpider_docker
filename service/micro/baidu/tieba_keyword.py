@@ -573,8 +573,8 @@ class TiebaSpider(object):
                     comment_num=content_info.get("comment_num"),  # 评论数
                     type="comment_type",
                     pics=pics,  # 是否有图片
-                    img_url=img_url  # 图片url
-
+                    img_url=img_url,  # 图片url
+                    crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
                 dic = {"replay_id": replay_id}
                 self.save_one_data_to_es(data, dic)

@@ -13,8 +13,6 @@ def weibo_hot_run():
     data_list, page_data_url_list = [], []
     html_list, wb_data_list = [], []
     weibo_detail_list, repost_list, comment_list = [], [], []
-    com_or_re_data_list, user_id_list = [], []
-    user_info_list = []
 
     resp_list, url_list = wb.get_hot_search_list()
     for url_data in url_list:

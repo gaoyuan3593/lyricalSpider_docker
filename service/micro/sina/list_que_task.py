@@ -1,7 +1,15 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
+
+import sys
+import os
+
+curPath = os.path.abspath(os.path.dirname(__file__))
+rootPath = os.path.split(curPath)[0]
+sys.path.append(os.path.split(os.path.split(rootPath)[0])[0])
+
 import multiprocessing
-from micro.utils.threading_ import WorkerThread
+from service.micro.utils.threading_ import WorkerThread
 from service import logger
 from service.db.utils.redis_utils import WEIBO_COMMENT_QQ, WEIBO_REPOST_QQ, WEIBO_USER_QQ
 from service.micro.sina.weibo_hot_search import WeiBoHotSpider
@@ -90,4 +98,4 @@ if __name__ == '__main__':
         for func in func_list:
             w = multiprocessing.Process(target=func)
             w.start()
-            w.join()
+            w.join(1)

@@ -170,11 +170,8 @@ class CctvWorldSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def cctv_worl_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "央视国际网",
         "domain": "http://www.cctv.com/news/ttxw/wrtt.html",
@@ -222,7 +219,11 @@ if __name__ == '__main__':
         ]
     }
     cctv = CctvWorldSpider(data)
-    news_url_list = cctv.get_news_all_url()
+    try:
+        news_url_list = cctv.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for dic in news_url_list:
         try:
             detail_list.append(cctv.get_news_detail(dic))
@@ -230,3 +231,7 @@ if __name__ == '__main__':
             continue
     for _data in detail_list:
         cctv.parse_news_detail(_data)
+
+
+if __name__ == '__main__':
+    cctv_worl_run()

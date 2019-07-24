@@ -30,7 +30,7 @@ class SouGouHotSpider(object):
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'sougou_cookie')
+        redis_cli = RedisClient('cookies', 'wechat')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):

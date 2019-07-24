@@ -165,11 +165,8 @@ class YouThSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def youth_spider_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "中国青年网",
         "domain": "http://www.youth.cn/",
@@ -217,7 +214,11 @@ if __name__ == '__main__':
         ]
     }
     spider = YouThSpider(data)
-    news_url_list = spider.get_news_all_url()
+    try:
+        news_url_list = spider.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for dic in news_url_list:
         try:
             detail_list.append(spider.get_news_detail(dic))
@@ -225,3 +226,7 @@ if __name__ == '__main__':
             continue
     for _data in detail_list:
         spider.parse_news_detail(_data)
+
+
+if __name__ == '__main__':
+    youth_spider_run()

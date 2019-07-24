@@ -102,7 +102,7 @@ class CnrSpider(object):
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9',
-            "Host":  host,
+            "Host": host,
             "Connection": "keep-alive",
         }
         try:
@@ -140,6 +140,8 @@ class CnrSpider(object):
                 _content = "".join(content).strip()
             else:
                 _content = "".join(content).strip()
+            if not title and not content:
+                return
             publish_time = x_html.xpath(self.publish_time_xpath)
             if not publish_time:
                 publish_time = x_html.xpath('//*[@id="pubtime_baidu"]/text()')
@@ -171,11 +173,8 @@ class CnrSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def cnr_news_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "央广网",
         "domain": "http://www.cnr.cn/",
@@ -231,3 +230,8 @@ if __name__ == '__main__':
             continue
     for _data in detail_list:
         spider.parse_news_detail(_data)
+
+
+if __name__ == '__main__':
+    ########   暂时有问题
+    cnr_news_run()

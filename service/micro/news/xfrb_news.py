@@ -15,7 +15,7 @@ from service.micro.news import XFRB_NEWS, NEWS_ES_TYPE
 from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
 
 
-class K618Spider(object):
+class XFRBSpider(object):
     __name__ = 'xiao fei ri bao news'
 
     def __init__(self, data):
@@ -174,11 +174,8 @@ class K618Spider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_parse import WorkerThreadParse
-
+def xfrb_news_run():
     detail_list = []
-    threads = []
     data = {
         "siteName": "消费日报网",
         "domain": "http://www.xfrb.com.cn/",
@@ -225,12 +222,20 @@ if __name__ == '__main__':
 
         ]
     }
-    k618 = K618Spider(data)
-    news_url_list = k618.get_news_all_url()
+    spider = XFRBSpider(data)
+    try:
+        news_url_list = spider.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for dic in news_url_list:
         try:
-            detail_list.append(k618.get_news_detail(dic))
+            detail_list.append(spider.get_news_detail(dic))
         except:
             continue
     for _data in detail_list:
-        k618.parse_news_detail(_data)
+        spider.parse_news_detail(_data)
+
+
+if __name__ == '__main__':
+    xfrb_news_run()

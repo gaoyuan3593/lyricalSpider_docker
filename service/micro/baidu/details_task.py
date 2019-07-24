@@ -1,12 +1,12 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
+import threadpool
 
 from service import logger
-import threadpool
 from service.micro.baidu.baijiahao import BaiJiaHaoSpider
 from service.micro.baidu.tieba import TiebaSpider
-from micro.utils.threading_ import WorkerThread
-from micro.utils.threading_parse import WorkerThreadParse
+from service.micro.utils.threading_ import WorkerThread
+from service.micro.utils.threading_parse import WorkerThreadParse
 
 
 def baijiahao_run():

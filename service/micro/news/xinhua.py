@@ -181,8 +181,7 @@ class XinHuaSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_ import WorkerThread
+def xinhua_run():
     from service.micro.utils.threading_parse import WorkerThreadParse
 
     detail_list = []
@@ -234,7 +233,11 @@ if __name__ == '__main__':
         ]
     }
     xinhua = XinHuaSpider(data)
-    news_url_list = xinhua.get_news_all_url()
+    try:
+        news_url_list = xinhua.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for news_url in news_url_list:
         worker = WorkerThreadParse(detail_list, xinhua.get_news_detail, (news_url,))
         worker.start()
@@ -250,3 +253,7 @@ if __name__ == '__main__':
         if work.isAlive():
             logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
             threads.append(work)
+
+
+if __name__ == '__main__':
+    xinhua_run()

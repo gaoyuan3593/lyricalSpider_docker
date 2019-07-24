@@ -247,7 +247,70 @@ WEIBO_USERINFO_MAPPING = {
 }
 
 # ------------微信mapping----------------
-
+WECHAT_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "author": {
+        "type": "keyword",
+    },
+    "wechat_num": {
+        "type": "keyword",
+        "index": True,
+    },
+    "article_date": {
+        "type": "date",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "article_text": {
+        "type": "text",
+    },
+    "article_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "pics": {
+        "type": "long",
+        "index": True,
+    },
+    "user_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "img_url": {
+        "type": "text",
+    },
+    "article_url": {
+        "type": "text",
+    },
+    "is_share": {
+        "type": "long",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
 
 # ------------百度百家号mapping----------------
 BAIJIAHAO_DETAIL_MAPPING = {

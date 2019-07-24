@@ -160,8 +160,7 @@ class ChinaNewsSpider(object):
             logger.exception(e)
 
 
-if __name__ == '__main__':
-    from service.micro.utils.threading_ import WorkerThread
+def china_news_run():
     from service.micro.utils.threading_parse import WorkerThreadParse
 
     detail_list = []
@@ -212,15 +211,19 @@ if __name__ == '__main__':
 
         ]
     }
-    chaina_news = ChinaNewsSpider(data)
+    china_news = ChinaNewsSpider(data)
 
-    news_url_list = chaina_news.get_news_all_url()
+    try:
+        news_url_list = china_news.get_news_all_url()
+    except Exception as e:
+        logger.exception(e)
+        return
     for news_url in news_url_list:
-        worker = WorkerThreadParse(detail_list, chaina_news.get_news_detail, (news_url,))
+        worker = WorkerThreadParse(detail_list, china_news.get_news_detail, (news_url,))
         worker.start()
         threads.append(worker)
     for _data in detail_list:
-        worker = WorkerThreadParse([], chaina_news.parse_news_detail(_data,))
+        worker = WorkerThreadParse([], china_news.parse_news_detail(_data, ))
         worker.start()
         threads.append(worker)
 
@@ -229,3 +232,7 @@ if __name__ == '__main__':
         if work.isAlive():
             logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
             threads.append(work)
+
+
+if __name__ == '__main__':
+    china_news_run()

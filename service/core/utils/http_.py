@@ -7,7 +7,7 @@ import urllib.request
 from datetime import datetime, date
 from http.client import IncompleteRead
 from urllib.parse import urlencode
-
+import urllib3
 import requests
 import requests.adapters
 from requests.exceptions import ProxyError, SSLError, Timeout, HTTPError
@@ -17,6 +17,10 @@ from service.core.utils.customerized_data_type import enum
 from service.exception import retry
 from service.exception.exceptions import *
 from service.utils.yaml_tool import get_by_name_yaml
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+requests.adapters.DEFAULT_RETRIES = 500
+
 
 HTTP_METHODS = enum(
     get='GET',

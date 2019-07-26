@@ -12,7 +12,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
-from service.micro.utils.math_utils import str_to_format_time, date_next
+from service.micro.utils.math_utils import str_to_format_time, weibo_date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
@@ -128,7 +128,7 @@ class WeiBoSpider(object):
     def query(self):
         logger.info('Processing get weibo key word ！')
         try:
-            url_list = date_next(self.params)
+            url_list = weibo_date_next(self.params)
             if isinstance(url_list, list):
                 threads = []
                 html_list, wb_data_list = [], []
@@ -275,10 +275,10 @@ class WeiBoSpider(object):
                 return dict(data=response.text, keyword=keyword)
             else:
                 logger.error('get weibo detail failed !')
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             self.next_cookie()
-            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_weibo_html(self, data):
@@ -413,7 +413,7 @@ class WeiBoSpider(object):
                 videos=videos,  # 是否有视频
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"weibo_id.keyword": weibo_id}
+            dic = {"weibo_id": weibo_id}
             self.save_one_data_to_es(resp_dada, dic)
             user_url_list = self.parse_user_info_url([user_id])
             user_data = self.get_user_info(user_url_list[0])
@@ -441,12 +441,12 @@ class WeiBoSpider(object):
             if "首页" in resp and "消息" in resp and "评论" in resp:
                 return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
             else:
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             if e.args or e.code:
                 time.sleep(1)
                 self.next_cookie()
-                self.requester.use_proxy()
                 raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -467,12 +467,12 @@ class WeiBoSpider(object):
             if "首页" in resp and "消息" in resp:
                 return dict(data=resp, type="repost_type", weibo_id=weibo_id, user_id=user_id)
             else:
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             if e.args or e.code:
                 time.sleep(1)
                 self.next_cookie()
-                self.requester.use_proxy()
                 raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=2)
@@ -733,7 +733,7 @@ class WeiBoSpider(object):
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
                 user_id_list.append(user_id)
-                dic = {"comment_id.keyword": comment_id}
+                dic = {"comment_id": comment_id}
                 self.save_one_data_to_es(resp_dada, dic)
             return list(set(user_id_list))
         except Exception as e:
@@ -793,7 +793,7 @@ class WeiBoSpider(object):
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
                 user_id_list.append(user_id)
-                dic = {"user_id.keyword": user_id}
+                dic = {"user_id": user_id}
                 self.save_one_data_to_es(resp_dada, dic)
             return list(set(user_id_list))
         except Exception as e:

@@ -15,9 +15,8 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.threading_ import WorkerThread
 from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
-from service.micro.utils.math_utils import sougou_str_to_format_time, to_json
+from service.micro.utils.math_utils import wechat_date_next, to_json
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
 from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
 
@@ -121,9 +120,12 @@ class SouGouKeywordSpider(object):
     def query(self):
         threads = []
         data_list, article_url_list, article_detail_list = [], [], []
-        keyword = self.params.get("q")
-        keyword_dic = self.parse_url_kewword(keyword)
-        url_list = self.get_weixin_page_url(keyword_dic)
+        url_list = []
+
+        begin_url_list = wechat_date_next(self.params)
+        for keyword_dic in begin_url_list:
+            url_list.extend(self.get_weixin_page_url(keyword_dic))
+
         if not url_list:
             return dict(
                 status=1,
@@ -158,13 +160,6 @@ class SouGouKeywordSpider(object):
             status=200,
             index=self.es_index,
             message="搜狗微信获取成功！"
-        )
-
-    def parse_url_kewword(self, keyword):
-        return dict(
-            url='https://weixin.sogou.com/weixin?type=2&s_from=input&query={}&ie=utf8&_sug_=n&_sug_type_='.format(
-                keyword),
-            keyword=keyword
         )
 
     def get_weibo_hot_seach(self):
@@ -208,7 +203,9 @@ class SouGouKeywordSpider(object):
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'zh-CN,zh;q=0.9',
-            'Host': 'weixin.sogou.com'
+            'Host': 'weixin.sogou.com',
+            'Referer': "https://weixin.sogou.com/weixin?type=2&s_from=input&query={}&ie=utf8&_sug_=n&_sug_type_=".format(
+                quote(keyword))
         }
         try:
             response = self.requester.get(url=url, header_dict=headers)
@@ -509,7 +506,7 @@ class SouGouKeywordSpider(object):
                 article_url=resp.get("url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
+            dic = {"article_id": article_id}
             self.save_one_data_to_es(data, dic)
         except Exception as e:
             logger.info(" article is delete article_id: ")
@@ -530,13 +527,14 @@ class SouGouKeywordSpider(object):
 if __name__ == "__main__":
     from service.micro.utils.threading_ import WorkerThread
 
-    weichat = SouGouKeywordSpider()
+    data = {"date": "2019-07-25", "q": "撒地方撒地方"}
+    weichat = SouGouKeywordSpider(data)
     threads = []
     data_list, weixin_article_url_list = [], []
     article_detail_list, url_list = [], []
 
-    keyword_list = weichat.get_weibo_hot_seach()
-    for keyword_data in keyword_list:
+    begin_url_list = weichat.query()
+    for keyword_data in begin_url_list:
         try:
             url_list.extend(weichat.get_weixin_page_url(keyword_data))
         except:
@@ -557,16 +555,6 @@ if __name__ == "__main__":
                 data_list.append(data)
         except Exception as e:
             continue
-    #     worker = WorkerThread(data_list, weichat.get_weixin_page_data, (url_data,))
-    #     time.sleep(1)
-    #     worker.start()
-    #     threads.append(worker)
-    # for work in threads:
-    #     work.join(1)
-    #     if work.isAlive():
-    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-    #         threads.append(work)
-    # threads = []
 
     if data_list:
         for data in data_list:
@@ -586,23 +574,7 @@ if __name__ == "__main__":
             article_detail_list.append(weichat.get_weixin_article_details(article_data))
         except Exception as e:
             continue
-    #     worker = WorkerThread(article_detail_list, weichat.get_weixin_article_details, (article_data,))
-    #     worker.start()
-    #     threads.append(worker)
-    # for work in threads:
-    #     work.join(1)
-    #     if work.isAlive():
-    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-    #         threads.append(work)
 
     threads = []
     for article in article_detail_list:
         weichat.parse_weixin_article_detail(article)
-    #     worker = WorkerThread([], weichat.parse_weixin_article_detail, (article,))
-    #     worker.start()
-    #     threads.append(worker)
-    # for work in threads:
-    #     work.join(1)
-    #     if work.isAlive():
-    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-    #         threads.append(work)

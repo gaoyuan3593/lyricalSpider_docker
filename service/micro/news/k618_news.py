@@ -184,6 +184,7 @@ class K618Spider(object):
                 news_url=news_url,  # url连接
                 type=NEWS_ES_TYPE.k618_news,
                 content=_content,  # 内容
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             dic = {"article_id.keyword": article_id}
             self.save_one_data_to_es(data, dic)

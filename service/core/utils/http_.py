@@ -138,9 +138,9 @@ class Requester(object):
         try:
             resp = self.s.get(url, headers=header_dict, params=params, allow_redirects=is_not_redirct,
                               timeout=self.next_http_timeout, verify=self.verify, stream=stream)
+            resp.close()
             self.cal_next_timeout(True)
             self.exception(resp.status_code)
-
             return resp
         except (ProxyError, SSLError, HTTPError, Timeout) as e:
             time.sleep(random.uniform(1, 2))
@@ -160,7 +160,7 @@ class Requester(object):
                 resp = self.s.post(url, headers=header_dict, data=data_dict, allow_redirects=is_not_redirct,
                                    timeout=self.next_http_timeout,
                                    verify=self.verify)
-
+            resp.close()
             self.cal_next_timeout(True)
             self.exception(resp.status_code)
             return resp
@@ -189,7 +189,6 @@ class Requester(object):
             pass
         elif status_code in [429, 407]:
             time.sleep(random.uniform(0.5, 1.5))
-            self.use_proxy()
         elif status_code in [400, 401, 402, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414,
                              415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 431, 444,
                              449, 450, 451, 499, 500, 503, 507, 510, 511]:

@@ -41,6 +41,7 @@ class TiebaSpider(object):
         self.es_index = self.params.get("tieba_index")
         self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
+        self.task_date = self.params.get("date")
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -305,6 +306,11 @@ class TiebaSpider(object):
                 except:
                     pass
                 tiezi_time = obj.find("font", attrs={"class": "p_green p_date"}).text.strip()  # 发布时间
+                _tiezi_time = datetime.strptime(tiezi_time, "%Y-%m-%d %H:%M")
+                if not self.parse_crawl_date(_tiezi_time, self.task_date):
+                    logger.info("Time exceeds start date data= [ article_date : {}, tid : {}]".
+                                format(_tiezi_time, tid))
+                    return
                 is_photo = obj.find_all("div", attrs={"class": "p_mediaCont"})
                 if is_photo:
                     pics = 1  # 是否有图片
@@ -315,7 +321,7 @@ class TiebaSpider(object):
                     content=content,  # 贴子内容，也就是楼主发布的内容
                     tieba=tieba,  # 所属贴吧
                     author=author,  # 作者
-                    tiezi_time=datetime.strptime(tiezi_time, "%Y-%m-%d %H:%M"),  # 发布时间
+                    tiezi_time=_tiezi_time,  # 发布时间
                     pics=pics,  # 是否有图片
                     imgs=imgs,  # 图片链接
                     b_keywold=keyword,  # 关键字
@@ -581,3 +587,15 @@ class TiebaSpider(object):
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
+
+    def parse_crawl_date(self, article_date, task_date):
+        if not task_date:
+            return
+        start_date = task_date
+        if ":" in task_date:
+            start_date, end_date = task_date.split(":")
+        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+        if article_date.__ge__(begin_date):
+            return article_date
+        else:
+            return

@@ -510,4 +510,5 @@ NEWS_ES_TYPE = enum(
     cri_news='cri_news',  # 国际在线网
     dang_jian='dang_jian',  # 党建网
     cyol_news='cyol_news',  # 中青在线
+    china_so='china_so',  # 中国搜索
 )

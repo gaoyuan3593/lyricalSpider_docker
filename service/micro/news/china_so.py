@@ -6,26 +6,30 @@ import json
 import re
 import requests
 from lxml import etree
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.math_utils import china_news_str_to_format_time
-from service.micro.news import CRI_NEWS, NEWS_ES_TYPE
+from service.micro.news.utils.proxies_util import get_proxies
+from service.micro.news import NEWS_ES_TYPE
 from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
+from service.micro.utils.threading_parse import WorkerThreadParse
 
 
-class CRISpider(object):
-    __name__ = 'cri news'
+class ChinaSoSpider(object):
+    __name__ = 'china so suo news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
         self.title_xpath = data.get("titleXPath")
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
         self.es = ElasticsearchClient()
+
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -73,32 +77,42 @@ class CRISpider(object):
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self):
-        logger.info('Processing get gmw news list!')
+        logger.info('Processing get china sou suo news list!')
         headers = {
             'User-Agent': ua(),
             'Connection': 'keep-alive',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9'
+            'Accept': 'text/html, */*; q=0.01',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Host': 'www.chinaso.com',
+            'Referer': 'http://www.chinaso.com/'
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
-            if "国际在线：向世界报道中国，向中国报道世界_中国国际广播电台" in response.text:
-                for url in CRI_NEWS:
-                    parms = r"{}\d+/\w+-\w+-\w+-\w+-\w+.html|{}\w+/\d+/\w+-\w+-\w+-\w+-\w+.html".format(url, url)
-                    _url_list = re.findall(parms, response.text)
-                    url_list.extend(["http:" + i for i in _url_list])
-            else:
-                raise InvalidResponseError
+            for i in range(2, 21):
+                url = "http://www.chinaso.com/in/tabtoutiao/index_{}.shtml".format(i)
+                response = self.s.get(url, headers=headers, verify=False)
+                response.encoding = "utf-8"
+                if "内容列表" in response.text:
+                    logger.info("get_news_all_url success url : {}".format(url))
+                    soup = BeautifulSoup(response.text, "lxml")
+                    div_list = soup.find_all("div", attrs={"class": "all_list toutiao_l_list"})
+                    div_list2 = soup.find_all("div", attrs={"class": "news-sum-div clearb toutiao_l_list"})
+                    if div_list2:
+                        div_list.extend(div_list2)
+                    url_list.extend([tag.find("a").attrs.get("href") for tag in div_list if
+                                     "image_detail" not in tag.find("a").attrs.get("href")])
+                else:
+                    continue
             return list(set(url_list))
         except Exception as e:
             time.sleep(1)
+            # self.use_proxies()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_detail(self, url):
-        logger.info('Processing get cri news details !!!')
+        logger.info('Processing get china so news details !!!')
         headers = {
             'User-Agent': ua(),
             'Proxy-Connection': 'keep-alive',
@@ -109,11 +123,12 @@ class CRISpider(object):
         try:
             response = self.s.get(url, headers=headers, verify=False)
             if response.status_code == 200:
-                logger.info("get cri news detail success url: {}".format(url))
+                response.encoding = "utf-8"
+                logger.info("get china so news detail success url: {}".format(url))
                 article_id = url.split("/")[-1].split(".")[0]
                 return dict(article_id=article_id, resp=response.text, news_url=url)
             else:
-                logger.error("get cri news detail failed")
+                logger.error("get china sou suo news detail failed")
                 raise InvalidResponseError
         except Exception as e:
             time.sleep(1)
@@ -125,35 +140,42 @@ class CRISpider(object):
         resp = _data.get("resp")
         news_url = _data.get("news_url")
         article_id = _data.get("article_id")
-        _content, _editor, _source = "", "", "国际在线网"
+        _content, _editor, _source = "", "", "中国搜索"
         _publish_time = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
         try:
             x_html = etree.HTML(resp)
             title = x_html.xpath(self.title_xpath) or \
-                    x_html.xpath('//*[@class="Atitle"]/text()') or \
-                    x_html.xpath('//*[@class="con-title clearfix"]/h3/text()') or \
-                    x_html.xpath('//*[@id="atitle"]/text()') or \
-                    x_html.xpath('//*[@class="caption marginTop15"]/p/text()') or \
-                    x_html.xpath('//*[@class="caption marginTop30"]/p/text()')
+                    x_html.xpath('//*[@class="t_newsinfo"]/text()') or \
+                    x_html.xpath('//*[@class="xwzx_wname01"]/text()') or \
+                    x_html.xpath('//*[@class="h-title"]/text()')
             _title = str(title[0]).strip() if title else ""
             content = x_html.xpath(self.content_xpath)
             if not content:
                 _str = ""
-                content = x_html.xpath('//*[@class="u-mainText"]/p/font/text()') or \
-                          x_html.xpath('//*[@class="h-contentMain"]/p/text()')
+                soup = BeautifulSoup(resp, "lxml"). \
+                    find("div", attrs={"class": "news_part news_part_limit"})
+                if soup:
+                    content = soup.text.split("责任编辑：")[0].strip()
+                else:
+                    content = x_html.xpath('//*[@class="xwzx_wname02"]/p/text()') or \
+                              x_html.xpath('//*[@id="p-detail"]/p/text()')
+
                 _content = "".join(content).strip()
             else:
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
             publish_time = x_html.xpath(self.publish_time_xpath) or \
-                           x_html.xpath('//*[@id="apublishtime"]/text()')
-            _publish_time = china_news_str_to_format_time(publish_time) or \
-                            x_html.xpath('//*[@class="sign left"]/span[1]/text()')
-            source = x_html.xpath('//*[@id="asource"]/a/text()') or \
-                     x_html.xpath('//*[@class="info"]/span[2]/a/text()') or \
-                     x_html.xpath('//*[@id="asource"]/text()') or \
-                     x_html.xpath('//*[@class="sign left"]/span[3]/a/text()')
+                           x_html.xpath('//*[@class="h-time"]/text()')
+            if publish_time:
+                publish_time = "".join(publish_time).strip()
+                try:
+                    _publish_time = re.findall(r"\d+-\d+-\d+ \d+:\d+", publish_time)[0]
+                except Exception as e:
+                    pass
+            source = x_html.xpath('//*[@class="detail-time"]/span[2]/a/text()') or \
+                     x_html.xpath('//*[@class="about_news"]/text()') or \
+                     x_html.xpath('//*[@class="h-info"]/span[2]/text()')
             if source:
                 source = "".join(source)
                 try:
@@ -163,10 +185,8 @@ class CRISpider(object):
                         _source = re.findall(r"来源.(.*)", source)[0].strip()
                 except:
                     pass
-            editor = x_html.xpath('//*[@id="aeditor"]/text()') or \
-                     x_html.xpath('//*[@class="info"]/span[3]/text()') or \
-                     x_html.xpath('//*[@class="sign left"]/span[5]/text()')
-            # x_html.xpath('//*[@class="liability"]/text()')
+            editor = x_html.xpath('//*[@class="editor"]/text()') or \
+                     x_html.xpath('//*[@class="infor_item"]/text()')
             if editor:
                 editor = "".join(editor)
                 try:
@@ -181,7 +201,7 @@ class CRISpider(object):
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
-                type=NEWS_ES_TYPE.gmw_news,
+                type=NEWS_ES_TYPE.china_so,
                 content=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
@@ -191,13 +211,14 @@ class CRISpider(object):
             logger.exception(e)
 
 
-def cri_news_run():
+def china_so_run():
     detail_list = []
+    threads = []
     data = {
-        "siteName": "国际在线网",
-        "domain": "http://www.cri.cn/",
+        "siteName": "中国搜索",
+        "domain": "http://www.chinaso.com/",
         "startURL": [
-            "http://www.cri.cn/"
+            "http://www.chinaso.com/"
         ],
         "id": "",
         "thread": "1",
@@ -206,15 +227,15 @@ def cri_news_run():
         "maxPageGather": "10",
         "timeout": "5000",
         "contentReg": "",
-        "contentXPath": "//*[@id='abody']/p/text()",
+        "contentXPath": "//*[@class='detail-main']/p/text()",
         "titleReg": "",
-        "titleXPath": '//*[@id="goTop"]/text()',
+        "titleXPath": '//*[@class="detail-title"]/text()',
         "categoryReg": "",
         "categoryXPath": "",
         "defaultCategory": "",
         "urlReg": "http://\\w+\\.people.com.cn/\d+/\d+-\d+/\d+.shtml",
         "charset": "",
-        "publishTimeXPath": '//*[@id="acreatedtime"]/text()',
+        "publishTimeXPath": '//*[@class="detail-time"]/span/text()',
         "publishTimeReg": "",
         "publishTimeFormat": "yyyy年MM月dd日HH:mm",
         "lang": "",
@@ -239,20 +260,34 @@ def cri_news_run():
 
         ]
     }
-    china = CRISpider(data)
+    china = ChinaSoSpider(data)
     try:
         news_url_list = china.get_news_all_url()
     except Exception as e:
         logger.exception(e)
         return
-    for dic in news_url_list:
-        try:
-            detail_list.append(china.get_news_detail(dic))
-        except:
-            continue
+    for url in news_url_list:
+        #detail_list.append(china.get_news_detail(url))
+        worker = WorkerThreadParse(detail_list, china.get_news_detail, (url,))
+        worker.start()
+        threads.append(worker)
+    for work in threads:
+        work.join(1)
+        if work.isAlive():
+            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+            threads.append(work)
+    threads = []
     for _data in detail_list:
-        china.parse_news_detail(_data)
+        # china.parse_news_detail(_data)
+        worker = WorkerThreadParse([], china.parse_news_detail, (_data,))
+        worker.start()
+        threads.append(worker)
+    for work in threads:
+        work.join(1)
+        if work.isAlive():
+            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+            threads.append(work)
 
 
 if __name__ == '__main__':
-    cri_news_run()
+    china_so_run()

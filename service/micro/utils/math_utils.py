@@ -194,7 +194,37 @@ def date_all(begin_date, end_date):
     return date_list
 
 
-def date_next(params):
+def wechat_date_next(params):
+    url_list = []
+    q = params.get("q")
+    _date = params.get("date")
+    if not _date:
+        _date = datetime.now().strftime("%Y-%m-%d")
+    if ":" in _date:
+        start_date, end_date = _date.split(":")
+        date_list = date_all(start_date, end_date)
+        s_y, s_m, s_d = start_date.split('-')
+        for date in date_list:
+            cu_date = "{}-{}-{}".format(s_y, s_m, str(date.day))
+            url = "https://weixin.sogou.com/weixin?type=2&ie=utf8&query={}&tsn=5&ft={}&et={}&interation=&wxid=&usip=".format(
+                q, cu_date, cu_date)
+            url_list.append(
+                dict(
+                    url=url,
+                    keyword=q
+                ))
+    else:
+        url = "https://weixin.sogou.com/weixin?type=2&ie=utf8&query={}&tsn=5&ft={}&et={}&interation=&wxid=&usip=".format(
+            q, _date, _date)
+        url_list.append(
+            dict(
+                url=url,
+                keyword=q
+            ))
+    return url_list
+
+
+def weibo_date_next(params):
     start_hours, _str_date = "0", ""
     url_list = []
     q = params.get("q")
@@ -245,6 +275,20 @@ def date_next(params):
 
 if __name__ == '__main__':
     # a = '2013年09月23日 20:08 '
-    a = ['发布时间：2019-06-19 15:54\xa0\xa0来源：消费日报网\xa0\xa0 ']
-    b = xfrb_str_to_format_time(a)
-    print(b)
+    data = {"date": "2019-07-12", "q": "sdafdsafsdaf"}
+    a = wechat_date_next(data)
+    article_date = datetime.strptime("2019-07-12", "%Y-%m-%d")
+    task_date = "2019-07-25"
+
+    def parse_crawl_date(article_date, task_date):
+        if not task_date:
+            return
+        start_date = task_date
+        if ":" in task_date:
+            start_date, end_date = task_date.split(":")
+        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+        if article_date.__ge__(begin_date):
+            return article_date
+        else:
+            return
+    parse_crawl_date(article_date, task_date)

@@ -118,21 +118,48 @@ if __name__ == '__main__':
     import json
 
     es = ElasticsearchClient()
-    es.create_index("weibo_angelababy_zen_me le_156334272")
+    # es.create_index("weibo_angelababy_zen_me le_156334272")
 
-    map = {
+    mapping = {
         "query": {
             "bool":
                 {
                     "must":
                         [{
-                            "term": {"b_keyword.keyword": "五花八门的过敏反应"}}],
+                            "term": {"weibo_id": "HD4WswYEO"}}],
                     "must_not": [],
                     "should": []}},
+        "from": 0,
         "sort": [],
         "aggs": {}
     }
-
-    result1 = es.dsl_search('weibo_hot_seach_details', "detail_type", map)
-    result = json.loads(result1)
-    print(result)
+    data = {
+        "weibo_time": "2019-07-12T08:49:00",
+        "platform": "iPhone客户端",
+        "contents": "山东大学留学生“学伴”项目惹争议，学校师生：为友好交流",
+        "weibo_id": "HD5jkgWwB",
+        "mid": "4393152104038221",
+        "user_id": "2814131830",
+        "like_num": 2,
+        "com_num": 222,
+        "repost_num": None,
+        "is_forward": 1,
+        "is_forward_weibo_id": "HD56lkUy3",
+        "type": "detail_type",
+        "key_user_list": [],
+        "forward_user_url_list": [],
+        "b_keyword": "山东大学留学生学伴为友好交流",
+        "topic": [],
+        "has_href": 0,
+        "pics": 1,
+        "videos": 0,
+        "crawl_time": "2019-07-23T23:07:00",
+    }
+    result = es.dsl_search("weibo_shan_dong_da_xue_xue_ban_1563934000", "detail_type", mapping)
+    if result.get("hits").get("hits"):
+        es.update("test", "detail_type", result.get("hits").get("hits")[0].get("_id"), data)
+        logger.info("dic : {}, update success".format(data))
+    #es.insert("test", "detail_type", data)
+    #result1 = es.dsl_search('weibo_hot_seach_details', "detail_type", map)
+    #result = json.loads(result1)
+    #print(result)

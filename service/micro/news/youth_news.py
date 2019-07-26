@@ -6,6 +6,7 @@ import json
 import re
 import requests
 from lxml import etree
+from datetime import datetime
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
@@ -157,6 +158,7 @@ class YouThSpider(object):
                 news_url=news_url,  # url连接
                 type=NEWS_ES_TYPE.youth_news,
                 content=_content,  # 内容
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             dic = {"article_id.keyword": article_id}
             self.save_one_data_to_es(data, dic)

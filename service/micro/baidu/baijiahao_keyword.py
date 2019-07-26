@@ -295,6 +295,11 @@ class BaiJiaHaoSpider(object):
             _date = resp_obj.find("div", attrs={"class": "article-source article-source-bjh"}).contents[0].text  # 发布时间
             _time = resp_obj.find("div", attrs={"class": "article-source article-source-bjh"}).contents[1].text  # 发布时间
             article_date = self.format_date(_date, _time)  # 发布时间
+            task_date = self.params.get("date")
+            if not self.parse_crawl_date(article_date, task_date):
+                logger.info("Time exceeds start date data= [ article_date : {}, article_id : {}]".
+                            format(article_date, resp.get("article_id")))
+                return
             author = resp_obj.find("p", attrs={"class": "author-name"}).text.strip()  # 作者
             avatar_img = resp_obj.find("div", attrs={"class": "author-icon"}).find("img").attrs.get("src")  # 头像
             img = resp_obj.find_all("img", attrs={"class": "large"})  # 是否有图片
@@ -323,11 +328,23 @@ class BaiJiaHaoSpider(object):
                 article_url=resp.get("acticle_url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
+            dic = {"article_id": article_id}
             self.save_one_data_to_es(data, dic)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
+
+    def parse_crawl_date(self, article_date, task_date):
+        if not task_date:
+            return
+        start_date = task_date
+        if ":" in task_date:
+            start_date, end_date = task_date.split(":")
+        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+        if article_date.__ge__(begin_date):
+            return article_date
+        else:
+            return
 
     def format_date(self, _date, _time):
         _str = None

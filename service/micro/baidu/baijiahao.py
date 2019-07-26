@@ -71,8 +71,9 @@ class BaiJiaHaoSpider(object):
             raise e
 
     def random_num(self):
-        return random.uniform(0.1, 0.5)
+        return random.uniform(1, 3)
 
+    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_weibo_hot_seach(self):
         logger.info('Processing get weibo hot search list!')
         url = 'https://s.weibo.com/top/summary?Refer=top_hot'
@@ -97,6 +98,7 @@ class BaiJiaHaoSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -141,7 +143,7 @@ class BaiJiaHaoSpider(object):
                             continue
                         data.append(dict(keyword=keyword, acticle_url_list=page_data.get("acticle_url_list")))
         except Exception as e:
-            self.requester.use_proxy()
+            time.sleep(5)
             raise e
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
@@ -159,7 +161,7 @@ class BaiJiaHaoSpider(object):
             'Accept-Encoding': 'gzip, deflate',
         }
         try:
-            #time.sleep(self.random_num())
+            time.sleep(self.random_num())
             resp = self.requester.get(next_page_url, header_dict=headers).text
             if keyword in resp:
                 logger.info("get_next_page_data success！！！！ ")
@@ -172,7 +174,7 @@ class BaiJiaHaoSpider(object):
             else:
                 raise HttpInternalServerError
         except Exception as e:
-            self.requester.use_proxy()
+            time.sleep(5)
             raise HttpInternalServerError
 
     def parse_next_url(self, resp):
@@ -237,7 +239,7 @@ class BaiJiaHaoSpider(object):
                     raise TimedOutError
             except Exception as e:
                 time.sleep(5)
-                self.requester.use_proxy()
+                #self.requester.use_proxy()
                 raise HttpInternalServerError
         return data_list
 

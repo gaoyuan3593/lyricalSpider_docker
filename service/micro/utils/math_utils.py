@@ -87,9 +87,9 @@ def people_str_to_format_time(_str):
             _str = "".join(_str).strip()
             old_str = _str.split("来源")[0].strip()
             _str = old_str.split("年")[0] + "-" + old_str.split("年")[1].replace("月", "-").replace("日", " ")
-            return _str
+            return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
 
 
 def china_str_to_format_time(_str):
@@ -108,9 +108,9 @@ def china_str_to_format_time(_str):
                 old_str = re.findall(r"(\d+-\d+-\d+)", _str)[0]
                 if len(old_str) < 16:
                     old_str = old_str + (datetime.now() + timedelta(minutes=--random.uniform(1, 10))).strftime(" %H:%M")
-                return old_str
+                return datetime.strptime(old_str, "%Y-%m-%d %H:%M")
     except:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
 
 
 def xinhua_str_to_format_time(_str):
@@ -119,11 +119,11 @@ def xinhua_str_to_format_time(_str):
             _str = "".join(_str).strip()
             if "年" in _str or "月" in _str:
                 _new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")[:-3]
-                return _new_str
+                return datetime.strptime(_new_str, "%Y-%m-%d %H:%M")
             _str = _str[:-3]
-            return _str
+            return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
 
 
 def china_news_str_to_format_time(_str):
@@ -132,18 +132,18 @@ def china_news_str_to_format_time(_str):
             _str = "".join(_str).strip()
             if "年" in _str or "月" in _str:
                 _new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")[:-3]
-                return _new_str
+                return datetime.strptime(_new_str, "%Y-%m-%d %H:%M")
             if len(_str) > 16:
                 _str = _str[:-3]
             else:
-                return _str
-            return _str
+                return datetime.strptime(_str, "%Y-%m-%d %H:%M")
+            return datetime.strptime(_str, "%Y-%m-%d %H:%M")
         elif isinstance(_str, str):
             new_str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "") + \
                       (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime(" %H:%M")
-            return new_str
+            return datetime.strptime(new_str, "%Y-%m-%d %H:%M")
     except:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
 
 
 def chinadaily_str_to_format_time(_str):
@@ -154,13 +154,13 @@ def chinadaily_str_to_format_time(_str):
                 year = datetime.now().strftime("%Y")
                 time = datetime.now().strftime(" %H:%M")
                 _new_str = year + "-" + _str.replace("月", "-").replace("日", "") + time
-                return _new_str
+                return datetime.strptime(_new_str, "%Y-%m-%d %H:%M")
             else:
                 _str = _str[-1].strip()
-                return _str
+                return datetime.strptime(_str, "%Y-%m-%d %H:%M")
 
     except:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
 
 
 def sougou_str_to_format_time(_str):

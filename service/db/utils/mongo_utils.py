@@ -8,4 +8,4 @@ MONGODB_PWD = ''
 MONGODB_HOST = 'mongodb://%s:%s@nut_mongo_host' % (MONGODB_USR, MONGODB_PWD)
 MONGODB_PORT = 27017
 
-connection = MongoClient("localhost", MONGODB_PORT)
+connection = MongoClient("127.0.0.1", MONGODB_PORT)

@@ -490,6 +490,70 @@ DANG_JIAN = [
     '/djw2016sy/djw2016wkztl/wkztl2016djzzwk/',  # 征文
 ]
 
+# 法制网
+LEGAL_DAILY = [
+    'http://www.legaldaily.com.cn/index/content/',
+    'http://www.legaldaily.com.cn/index_article/content/'
+]
+
+# 海外网
+
+HAI_WAI_NET = [
+    'http://opinion.haiwainet.cn/',  # 评论
+    'http://news.haiwainet.cn/',  # 资讯
+    'http://theory.haiwainet.cn/',  # 理论
+    'http://huaren.haiwainet.cn/',  # 华人
+    'http://tw.haiwainet.cn/',  # 台湾
+    'http://hk.haiwainet.cn/',  # 香港
+    'http://mac.haiwainet.cn/',  # 澳门
+    'http://www.nanhainet.cn/',  # 南海
+    'http://huamei.haiwainet.cn/',  # 华媒
+    'http://www.haiwainet.cn/liuxue/',  # 留学
+    'http://haiketravel.haiwainet.cn/',  # 旅行
+    'http://www.haiwainet.cn/roll/',  # 滚动
+    'http://singapore.haiwainet.cn/',  # 新加坡
+    'http://japan.haiwainet.cn/',  # 日本
+    'http://chaoxian.haiwainet.cn/',  # 朝鲜
+    'http://korea.haiwainet.cn/',  # 韩国
+    'http://helan.haiwainet.cn/',  # 荷兰
+    'http://de.haiwainet.cn/',  # 德国
+    'http://spain.haiwainet.cn/',  # 西班牙
+    'http://fr.haiwainet.cn/',  # 法国
+    'http://nz.haiwainet.cn/',  # 新西兰
+    'http://australia.haiwainet.cn/',  # 澳大利亚
+    'http://africa.haiwainet.cn/',  # 非洲
+    'http://us.haiwainet.cn/',  # 美国
+    'http://canada.haiwainet.cn/',  # 加拿大
+    'http://pt.haiwainet.cn/',  # 葡萄牙
+    'http://italy.haiwainet.cn/',  # 意大利
+    'http://silu.haiwainet.cn/',  # 丝路
+    'http://culture.haiwainet.cn/',  # 文化
+    'http://minsheng.haiwainet.cn/',  # 民生
+    'http://blockchain.haiwainet.cn/',  # 区块链
+    'http://shengtai.haiwainet.cn/',  # 生态
+    'http://sannong.haiwainet.cn/',  # 三农
+    'http://chuangxin.haiwainet.cn/',  # 创新
+    'http://travel.haiwainet.cn/',  # 旅游
+    'http://huashang.haiwainet.cn/',  # 华商
+    'http://renwen.haiwainet.cn/',  # 人文
+    'http://chengjian.haiwainet.cn/',  # 城建
+    'http://quyu.haiwainet.cn/',  # 区域
+    'http://shangjie.haiwainet.cn/',  # 商界
+    'http://ziyuan.haiwainet.cn/',  # 资源
+    'http://smartcity.haiwainet.cn/',  # AI城市
+    'http://wenyi.haiwainet.cn/',  # 文遗
+    'http://pinpai.haiwainet.cn/',  # 品牌
+    'http://jiaoyu.haiwainet.cn/',  # 教育
+    'http://jinrong.haiwainet.cn/',  # 金融
+    'http://nengyuan.haiwainet.cn/',  # 能源
+    'http://jingmao.haiwainet.cn/',  # 经贸
+    'http://shenlan.haiwainet.cn/',  # 深蓝
+    'http://chanjing.haiwainet.cn/',  # 产经
+    'http://haiyang.haiwainet.cn/',  # 海洋
+    'http://xianyu.haiwainet.cn/',  # 县域
+]
+
+
 # 各个新闻网站 type
 NEWS_ES_TYPE = enum(
     people='people',  # 人民网
@@ -511,4 +575,9 @@ NEWS_ES_TYPE = enum(
     dang_jian='dang_jian',  # 党建网
     cyol_news='cyol_news',  # 中青在线
     china_so='china_so',  # 中国搜索
+    legal_daily='legal_daily',  # 法制网
+    haiwai_net='haiwai_net',  # 海外网
+    inewsweek='inewsweek',  # 中国新闻周刊
+    xinhua_net='xinhua_net',  # 新华每日电讯
+    qstheory='qstheory',  # 求是网
 )

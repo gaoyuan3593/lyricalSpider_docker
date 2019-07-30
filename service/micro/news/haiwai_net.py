@@ -6,19 +6,18 @@ import json
 import re
 import requests
 from lxml import etree
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.math_utils import china_news_str_to_format_time
-from service.micro.news import NEWS_ES_TYPE
+from service.micro.news.utils.proxies_util import get_proxies
+from service.micro.news import HAI_WAI_NET, NEWS_ES_TYPE
 from service.micro.news.utils.search_es import SaveDataToEs
 
 
-class CctvWorldSpider(object):
-    __name__ = 'cctv world news'
+class HaiWaiNetSpider(object):
+    __name__ = 'hai wai net news'
 
     def __init__(self, data):
         self.start_url = data.get("startURL")[0]
@@ -27,12 +26,15 @@ class CctvWorldSpider(object):
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
 
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
+
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self):
-        logger.info('Processing get cctv world news list!')
+        logger.info('Processing get hai wai net news list!')
         headers = {
             'User-Agent': ua(),
             'Connection': 'keep-alive',
@@ -43,51 +45,43 @@ class CctvWorldSpider(object):
         url_list = []
         try:
             response = self.s.get(self.start_url, headers=headers, verify=False)
-            response.encoding = "gb2312"
-            if "央视国际网" in response.text:
-                soup = BeautifulSoup(response.text, "lxml")
-                _url_list = soup.find("center").find_all("table")[3].contents[1::2]
-                for tr in _url_list:
-                    _url = "http://www.cctv.com"
-                    if tr.find("td", attrs={"class": True}):
-                        if _url in tr.contents[2].find("a").attrs.get("href"):
-                            detail_url = tr.contents[2].find("a").attrs.get("href")
-                        else:
-                            detail_url = _url + tr.contents[2].find("a").attrs.get("href")
-                        url_list.append(
-                            dict(
-                                url=detail_url,
-                                title=tr.contents[2].text.strip()
-                            )
-                        )
-            return url_list
+            response.encoding = "utf-8"
+            if "海外网_人民日报海外版官方网站_全球华人的网上家园" in response.text:
+                for url in HAI_WAI_NET:
+                    parms = r"{}n/\d+/\d+/\w+-\w+.html".format(url)
+                    _url_list = re.findall(parms, response.text)
+                    url_list.extend(_url_list)
+            else:
+                raise InvalidResponseError
+            return list(set(url_list))
         except Exception as e:
+            time.sleep(1)
+            self.use_proxies()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
-    def get_news_detail(self, dic):
-        logger.info('Processing get cctv world news details !!!')
-        url = dic.get("url")
-        title = dic.get("title")
+    def get_news_detail(self, url):
+        logger.info('Processing get hai wai net news details !!!')
         headers = {
             'User-Agent': ua(),
             'Proxy-Connection': 'keep-alive',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9',
-            'Host': 'www.cctv.com'
+            'Host': url.split("/")[2]
         }
         try:
             response = self.s.get(url, headers=headers, verify=False)
-            response.encoding = "gb2312"
             if response.status_code == 200:
-                logger.info("get cctv world news detail success url: {}".format(url))
-                article_id = url.split("ttxw/")[-1].split(".")[0]
-                return dict(article_id=article_id, resp=response.text, news_url=url, title=title)
+                response.encoding = "utf-8"
+                logger.info("get hai wai net news detail success url: {}".format(url))
+                article_id = url.split("/")[-1].split(".")[0]
+                return dict(article_id=article_id, resp=response.text, news_url=url)
             else:
-                logger.error("get cctv world news detail failed")
+                logger.error("get hai wai net news detail failed")
                 raise InvalidResponseError
         except Exception as e:
+            time.sleep(1)
             raise InvalidResponseError
 
     def parse_news_detail(self, _data):
@@ -96,22 +90,51 @@ class CctvWorldSpider(object):
         resp = _data.get("resp")
         news_url = _data.get("news_url")
         article_id = _data.get("article_id")
-        _content, _editor, _source = "", "", "央视国际网"
+        _content, _editor, _source = "", "", "海外网"
         _publish_time = datetime.now() + timedelta(minutes=-10)
         try:
             x_html = etree.HTML(resp)
-            _title = _data.get("title")
+            if not x_html:
+                return
+            title = x_html.xpath(self.title_xpath) or \
+                    x_html.xpath('/html/body/div/h1/text()')
+            _title = str(title[0]).strip() if title else ""
             content = x_html.xpath(self.content_xpath)
             if not content:
-                content = x_html.xpath('//*[@class="setfont14"]/text()')
-            _content = "".join(content).strip().replace("\r\n", "")
-            if not content:
+                _str = ""
+                content = x_html.xpath('//*[@class="des"]/p[1]/text()') or \
+                          x_html.xpath('//*[@class="des"]/text()')
+                _content = "".join(content).strip()
+            else:
+                _content = "".join("".join(content).strip().split())
+            if not title or not content:
                 return
-            try:
-                publish_time = re.findall(r"(\d+年\d+月\d+日)", resp)[0]
-                _publish_time = china_news_str_to_format_time(publish_time)
-            except:
-                pass
+            publish_time = x_html.xpath(self.publish_time_xpath) or \
+                           x_html.xpath('//*[@class="newsMess"]/span[1]/text()')
+            if publish_time:
+                _time = "".join(publish_time)
+                _publish_time = re.findall(r"\d+-\d+-\d+ \d+:\d+", _time)[0]
+                _publish_time = datetime.strptime(_publish_time, "%Y-%m-%d %H:%M")
+            source = x_html.xpath('//*[@class="contentExtra"]/span[2]/text()') or \
+                     x_html.xpath('//*[@class="newsMess"]/span[2]/text()')
+            if source:
+                source = "".join(source)
+                try:
+                    if "来源" not in source:
+                        _source = source
+                    else:
+                        _source = re.findall(r"来源.(.*)", source)[0].strip()
+                except:
+                    _source = re.findall(r"来自.(.*)", source)[0].strip()
+            editor = x_html.xpath('//*[@class="writer"]/text()') or \
+                     x_html.xpath('//*[@class="des"]/p[2]/text()')
+            if editor:
+                editor = "".join(editor).strip()
+                try:
+                    editor = re.findall(r"责编：(.*)", editor)
+                    _editor = editor[0]
+                except:
+                    pass
             data = dict(
                 title=_title,  # 标题
                 article_id=article_id,  # 文章id
@@ -119,7 +142,7 @@ class CctvWorldSpider(object):
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
-                type=NEWS_ES_TYPE.cctv_word,
+                type=NEWS_ES_TYPE.haiwai_net,
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
@@ -129,13 +152,13 @@ class CctvWorldSpider(object):
             logger.exception(e)
 
 
-def cctv_worl_run():
+def haiwai_net_run():
     detail_list = []
     data = {
-        "siteName": "央视国际网",
-        "domain": "http://www.cctv.com/news/ttxw/wrtt.html",
+        "siteName": "海外网",
+        "domain": "http://www.haiwainet.cn/",
         "startURL": [
-            "http://www.cctv.com/news/ttxw/wrtt.html"
+            "http://www.haiwainet.cn/"
         ],
         "id": "",
         "thread": "1",
@@ -144,15 +167,15 @@ def cctv_worl_run():
         "maxPageGather": "10",
         "timeout": "5000",
         "contentReg": "",
-        "contentXPath": "//*[@class='setfont14']/text()",
+        "contentXPath": "//*[@class='contentMain']/p/text()",
         "titleReg": "",
-        "titleXPath": '//html/body/div/h1/text()',
+        "titleXPath": '//*[@class="show_wholetitle"]/text()',
         "categoryReg": "",
         "categoryXPath": "",
         "defaultCategory": "",
         "urlReg": "http://\\w+\\.people.com.cn/\d+/\d+-\d+/\d+.shtml",
         "charset": "",
-        "publishTimeXPath": "//*[@id='pubtime_baidu']/text()",
+        "publishTimeXPath": '//*[@class="first"]/text()',
         "publishTimeReg": "",
         "publishTimeFormat": "yyyy年MM月dd日HH:mm",
         "lang": "",
@@ -177,20 +200,20 @@ def cctv_worl_run():
 
         ]
     }
-    cctv = CctvWorldSpider(data)
+    china = HaiWaiNetSpider(data)
     try:
-        news_url_list = cctv.get_news_all_url()
+        news_url_list = china.get_news_all_url()
     except Exception as e:
         logger.exception(e)
         return
     for dic in news_url_list:
         try:
-            detail_list.append(cctv.get_news_detail(dic))
+            detail_list.append(china.get_news_detail(dic))
         except:
             continue
     for _data in detail_list:
-        cctv.parse_news_detail(_data)
+        china.parse_news_detail(_data)
 
 
 if __name__ == '__main__':
-    cctv_worl_run()
+    haiwai_net_run()

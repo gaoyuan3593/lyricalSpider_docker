@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from service import logger
-from service.micro.sougou_wechat.sougou_task import  wechat_hot_run
+from service.micro.sougou_wechat.sougou_task import wechat_hot_run
 
 
 def run_wechat_hot_tasks():
@@ -25,9 +25,12 @@ def run_wechat_hot_tasks():
 
 
 if __name__ == '__main__':
+    import pytz
+
+    tz = pytz.timezone('America/New_York')
     sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '5000'})
 
     # 搜狗微信热搜定时任务
-    sched.add_job(run_wechat_hot_tasks, 'interval', minutes=6, next_run_time=datetime.now() + timedelta(seconds=5))
+    sched.add_job(run_wechat_hot_tasks, 'interval', minutes=30, next_run_time=datetime.now(tz) + timedelta(seconds=5))
 
     sched.start()

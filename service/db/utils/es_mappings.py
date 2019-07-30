@@ -567,3 +567,50 @@ TIEBA_USER_MAPPING = {
         "index": True,
     }
 }
+
+# ------------各类新闻网站mapping----------------
+NEWS_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "editor": {
+        "type": "text",
+    },
+    "date": {
+        "type": "date",
+        "index": True,
+    },
+    "contents": {
+        "type": "text",
+    },
+    "article_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "source": {
+        "type": "keyword",
+        "index": True,
+    },
+    "news_url": {
+        "type": "text",
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}

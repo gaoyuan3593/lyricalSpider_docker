@@ -356,6 +356,7 @@ class SouGouHotSpider(object):
                     _str = _str.replace(",", "")
                 page_num = int(_str) // 10 + 1
                 page_num = 101 if page_num > 100 else page_num
+                page_num = 11
                 for i in range(1, page_num):
                     url = "https://weixin.sogou.com/weixin?query={}&s_from=hotnews&type=2&page={}&ie=utf8".format(
                         keyword, i)

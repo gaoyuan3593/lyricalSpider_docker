@@ -13,7 +13,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.math_utils import china_news_str_to_format_time
 from service.micro.news import GMW_NEWS, NEWS_ES_TYPE
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
+from service.micro.news.utils.search_es import SaveDataToEs
 
 
 class GMWSpider(object):
@@ -25,48 +25,6 @@ class GMWSpider(object):
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
-        self.es = ElasticsearchClient()
-
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [
-                                {"term": _dic}
-                            ],
-                        "must_not": [],
-                        "should": []}},
-            "from": 0,
-            "size": 10,
-            "sort": [],
-            "aggs": {}
-        }
-        try:
-            result = self.es.dsl_search(NEWSDETAIL, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def save_one_data_to_es(self, data, dic):
-        """
-        将为爬取的数据存入es中
-        :param data_list: 数据
-        :return:
-        """
-        try:
-            _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
-                return
-            self.es.insert(NEWSDETAIL, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
-        except Exception as e:
-            raise e
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -180,11 +138,11 @@ class GMWSpider(object):
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
                 type=NEWS_ES_TYPE.gmw_news,
-                content=_content,  # 内容
+                contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
-            self.save_one_data_to_es(data, dic)
+            dic = {"article_id": article_id}
+            SaveDataToEs.save_one_data_to_es(data, dic)
         except Exception as e:
             logger.exception(e)
 

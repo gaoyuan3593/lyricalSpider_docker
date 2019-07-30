@@ -11,13 +11,13 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.math_utils import china_news_str_to_format_time
-from service.micro.news import CHINA_TAIWAN, NEWS_ES_TYPE
+from service.micro.news.utils.proxies_util import get_proxies
+from service.micro.news import NEWS_ES_TYPE
 from service.micro.news.utils.search_es import SaveDataToEs
 
 
-class ChinataiWan(object):
-    __name__ = 'china taiwan news'
+class LegalDailySpider(object):
+    __name__ = 'inewsweek news'
 
     def __init__(self, data):
         self.start_url = data.get("startURL")[0]
@@ -31,7 +31,7 @@ class ChinataiWan(object):
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self):
-        logger.info('Processing get china taiwan news list!')
+        logger.info('Processing get inewsweek news list!')
         headers = {
             'User-Agent': ua(),
             'Connection': 'keep-alive',
@@ -43,40 +43,69 @@ class ChinataiWan(object):
         try:
             response = self.s.get(self.start_url, headers=headers, verify=False)
             response.encoding = "gb2312"
-            if "中国台湾网 聚焦台湾 携手两岸" in response.text:
-                for url in CHINA_TAIWAN:
-                    parms = r"{}\d+/\w+.htm".format(url)
-                    _url_list = re.findall(parms, response.text)
-                    url_list.extend(_url_list)
+            if "中国新闻周刊" in response.text:
+                for i in range(1, 100):
+                    data_list = self.get_page_data(i)
+                    url_list.extend(data_list)
             else:
                 raise InvalidResponseError
-            return list(set(url_list))
+            return url_list
         except Exception as e:
             time.sleep(1)
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
-    def get_news_detail(self, url):
-        logger.info('Processing get china taiwan news details !!!')
+    def get_page_data(self, num):
+        url = "http://channel.inewsweek.chinanews.com/u/zk.shtml?pager={}&pagenum=20".format(num)
+        headers = {
+            'User-Agent': ua(),
+            'Connection': 'keep-alive',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9'
+        }
+        _list = []
+        try:
+            resp = self.s.get(url, headers=headers, verify=False).text
+            if "specialcnsdata" in resp:
+                logger.info("get page data success url : {}".format(url))
+                r = re.findall(r"specialcnsdata = (.*);", resp)[0]
+                data = json.loads(r).get("docs")
+                for dic in data:
+                    _list.append(
+                        dict(
+                            pubtime=dic.get("pubtime"),
+                            article_id=dic.get("id"),
+                            title=dic.get("title"),
+                            news_url=dic.get("url")
+                        )
+                    )
+        except Exception as e:
+            raise InvalidResponseError
+        return _list
+
+    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
+    def get_news_detail(self, dic):
+        logger.info('Processing get inewsweek news details !!!')
         headers = {
             'User-Agent': ua(),
             'Proxy-Connection': 'keep-alive',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Host': "www.inewsweek.cn"
         }
+        url = dic.get("news_url")
         try:
             response = self.s.get(url, headers=headers, verify=False)
             if response.status_code == 200:
-                if 'charset="utf-8"' in response.text:
-                    response.encoding = "utf-8"
-                else:
-                    response.encoding = "gb2312"
-                logger.info("get china taiwan news detail success url: {}".format(url))
-                article_id = url.split("/")[-1].split(".")[0]
-                return dict(article_id=article_id, resp=response.text, news_url=url)
+                response.encoding = "gb2312"
+                logger.info("get inewsweek news detail success url: {}".format(url))
+                dic.update(resp=response.text)
+                return dic
             else:
-                logger.error("get china taiwan news detail failed")
+                logger.error("get inewsweek news detail failed")
+                # self.use_proxies()
                 raise InvalidResponseError
         except Exception as e:
             time.sleep(1)
@@ -86,48 +115,40 @@ class ChinataiWan(object):
         if not _data:
             return
         resp = _data.get("resp")
-        news_url = _data.get("news_url")
-        article_id = _data.get("article_id")
-        _content, _editor, _source = "", "", "中国台湾网"
-        _publish_time = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
+        _content, _editor, _source = "", "", "中国新闻周刊"
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
-                    x_html.xpath('//*[@id="artBox"]/h1/text()')
-            _title = str(title[0]).strip() if title else ""
+            if not x_html:
+                return
+            title = _data.get("title")
             content = x_html.xpath(self.content_xpath)
             if not content:
                 _str = ""
-                content = x_html.xpath('//*[@class="Custom_UnionStyle"]/p/text()')
+                content = x_html.xpath('//*[@class="contenttxt"]/p/span/text()') or \
+                          x_html.xpath('//*[@class="contenttxt"]/div/text()')
                 _content = "".join(content).strip()
             else:
-                _content = "".join(content).strip()
+                _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath)
-            _publish_time = china_news_str_to_format_time(publish_time)
-            source = x_html.xpath('//*[@id="infoAFun"]/div/span[2]/text()')
-            if source:
-                source = "".join(source)
-                try:
-                    _source = re.findall(r"来源.(.*)", source)[0].strip()
-                except:
-                    pass
-            editor = x_html.xpath('//*[@class="editor"]/text()')
+            editor = re.findall(r"责任编辑：(.*)", resp)
             if editor:
-                editor = "".join(editor)
-                try:
-                    _editor = re.findall(r"责任编辑：(.*)]", editor)[0]
-                except:
-                    pass
+                _str = "".join(editor)
+                if "</p>" in _str:
+                    _editor = _str.split("</p>")[0]
+                else:
+                    _editor = editor[0]
+            article_id = _data.get("article_id")
+            date_time = _data.get("pubtime")
+            _publish_time = datetime.strptime(date_time[:-3], "%Y-%m-%d %H:%M")
             data = dict(
-                title=_title,  # 标题
+                title=title,  # 标题
                 article_id=article_id,  # 文章id
-                date=_publish_time,  # 发布时间
+                date=_data.get("pubtime"),  # 发布时间
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
-                news_url=news_url,  # url连接
-                type=NEWS_ES_TYPE.china_taiwan,
+                news_url=_data.get("news_url"),  # url连接
+                type=NEWS_ES_TYPE.inewsweek,
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
@@ -137,13 +158,14 @@ class ChinataiWan(object):
             logger.exception(e)
 
 
-def china_taiwan_run():
+def inewsweek_run():
+    from service.micro.utils.threading_ import WorkerThread
     detail_list = []
     data = {
-        "siteName": "中国台湾网",
-        "domain": "http://www.taiwan.cn/",
+        "siteName": "中国新闻周刊",
+        "domain": "http://www.inewsweek.cn/",
         "startURL": [
-            "http://www.taiwan.cn/"
+            "http://www.inewsweek.cn/"
         ],
         "id": "",
         "thread": "1",
@@ -152,15 +174,15 @@ def china_taiwan_run():
         "maxPageGather": "10",
         "timeout": "5000",
         "contentReg": "",
-        "contentXPath": "//*[@class='TRS_Editor']/p/text()",
+        "contentXPath": "//*[@class='contenttxt']/p/text()",
         "titleReg": "",
-        "titleXPath": '//*[@id="title"]/text()',
+        "titleXPath": '//*[@class="show_wholetitle"]/text()',
         "categoryReg": "",
         "categoryXPath": "",
         "defaultCategory": "",
         "urlReg": "http://\\w+\\.people.com.cn/\d+/\d+-\d+/\d+.shtml",
         "charset": "",
-        "publishTimeXPath": '//*[@id="infoAFun"]/div/span[1]/text()',
+        "publishTimeXPath": '//*[@class="first"]/text()',
         "publishTimeReg": "",
         "publishTimeFormat": "yyyy年MM月dd日HH:mm",
         "lang": "",
@@ -185,20 +207,37 @@ def china_taiwan_run():
 
         ]
     }
-    china = ChinataiWan(data)
+    threads = []
+    china = LegalDailySpider(data)
     try:
         news_url_list = china.get_news_all_url()
     except Exception as e:
         logger.exception(e)
         return
     for dic in news_url_list:
-        try:
-            detail_list.append(china.get_news_detail(dic))
-        except:
-            continue
+        # try:
+        #     detail_list.append(china.get_news_detail(dic))
+        # except:
+        #     continue
+        worker = WorkerThread(detail_list, china.get_news_detail, (dic,))
+        worker.start()
+        threads.append(worker)
+    for work in threads:
+        work.join(1)
+        if work.isAlive():
+            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+            threads.append(work)
+    threads = []
     for _data in detail_list:
-        china.parse_news_detail(_data)
+        worker = WorkerThread([], china.parse_news_detail, (_data,))
+        worker.start()
+        threads.append(worker)
+    for work in threads:
+        work.join(1)
+        if work.isAlive():
+            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+            threads.append(work)
 
 
 if __name__ == '__main__':
-    china_taiwan_run()
+    inewsweek_run()

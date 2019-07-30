@@ -103,7 +103,7 @@ class WeiBoSpider(object):
         """
         try:
             _type = data.get("type")
-            if self.filter_keyword(_type, dic):
+            if self.filter_keyword(_type, dic, data):
                 logger.info("is existed  dic: {}".format(dic))
                 return
             self.es.insert(self.es_index, _type, data)

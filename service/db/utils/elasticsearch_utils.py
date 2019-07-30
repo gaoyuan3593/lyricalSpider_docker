@@ -30,7 +30,11 @@ class ElasticsearchClient(Elasticsearch):
 
         }
         if self.es.indices.exists(index=index_name) is not True:
-            return self.es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)
+            result = self.es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)
+            if result.get("acknowledged"):
+                return result
+            elif result.get("status") == 400:
+                return result.get("error")
 
     def delete_index(self, index_name, ignore=[400, 404]):
         """
@@ -113,12 +117,21 @@ BAIDUTIEBA = "baidu_tieba_details"
 
 # 所有新闻网站
 NEWSDETAIL = "news_details"
+ALL_NEWS_DETAILS = "all_news_details"
 
 if __name__ == '__main__':
     import json
 
     es = ElasticsearchClient()
-    # es.create_index("weibo_angelababy_zen_me le_156334272")
+    from service.db.utils.es_mappings import NEWS_DETAIL_MAPPING
+
+    _index_mapping = {
+        "people":
+            {
+                "properties": NEWS_DETAIL_MAPPING
+            },
+    }
+    es.create_index(ALL_NEWS_DETAILS, _index_mapping)
 
     mapping = {
         "query": {

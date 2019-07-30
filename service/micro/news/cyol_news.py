@@ -13,7 +13,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.math_utils import china_news_str_to_format_time
 from service.micro.news import CRI_NEWS, NEWS_ES_TYPE
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
+from service.micro.news.utils.search_es import SaveDataToEs
 
 
 class CyolSpider(object):
@@ -25,48 +25,6 @@ class CyolSpider(object):
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
-        self.es = ElasticsearchClient()
-
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [
-                                {"term": _dic}
-                            ],
-                        "must_not": [],
-                        "should": []}},
-            "from": 0,
-            "size": 10,
-            "sort": [],
-            "aggs": {}
-        }
-        try:
-            result = self.es.dsl_search(NEWSDETAIL, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def save_one_data_to_es(self, data, dic):
-        """
-        将为爬取的数据存入es中
-        :param data_list: 数据
-        :return:
-        """
-        try:
-            _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
-                return
-            self.es.insert("test", _type, data)
-            logger.info(" save to es success data= {}！".format(data))
-        except Exception as e:
-            raise e
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -148,8 +106,7 @@ class CyolSpider(object):
                 return
             publish_time = x_html.xpath(self.publish_time_xpath) or \
                            x_html.xpath('//*[@id="apublishtime"]/text()')
-            _publish_time = china_news_str_to_format_time(publish_time) or \
-                            x_html.xpath('//*[@class="sign left"]/span[1]/text()')
+            _publish_time = china_news_str_to_format_time(publish_time)
             source = x_html.xpath('//*[@id="asource"]/a/text()') or \
                      x_html.xpath('//*[@class="info"]/span[2]/a/text()') or \
                      x_html.xpath('//*[@id="asource"]/text()') or \
@@ -166,7 +123,6 @@ class CyolSpider(object):
             editor = x_html.xpath('//*[@id="aeditor"]/text()') or \
                      x_html.xpath('//*[@class="info"]/span[3]/text()') or \
                      x_html.xpath('//*[@class="sign left"]/span[5]/text()')
-            # x_html.xpath('//*[@class="liability"]/text()')
             if editor:
                 editor = "".join(editor)
                 try:
@@ -182,11 +138,11 @@ class CyolSpider(object):
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
                 type=NEWS_ES_TYPE.gmw_news,
-                content=_content,  # 内容
+                contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
-            self.save_one_data_to_es(data, dic)
+            dic = {"article_id": article_id}
+            SaveDataToEs.save_one_data_to_es(data, dic)
         except Exception as e:
             logger.exception(e)
 

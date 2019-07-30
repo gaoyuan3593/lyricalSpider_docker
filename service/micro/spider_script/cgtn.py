@@ -19,14 +19,14 @@ class CgtnSpider(object):
     __name__ = 'cgtn spider'
 
     def __init__(self, keyword):
-        self.keyword = keyword
         self.requester = Requester()
+        self.keyword = keyword
 
     def random_num(self):
         return random.uniform(0.1, 1)
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
-    def get_cgtn_data(self):
+    def get_cgtn_data(self, keyword):
         """
         获取cgtn首页
         :return: dict
@@ -42,10 +42,10 @@ class CgtnSpider(object):
             "Host": "api.cgtn.com",
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "zh-CN,zh;q=0.9",
-            "Referer": "https://www.cgtn.com/search?keyword={}".format(self.keyword.replace(" ", "%20"))
+            "Referer": "https://www.cgtn.com/search?keyword={}".format(keyword.replace(" ", "%20"))
         }
         data = {
-            "keyword": self.keyword,
+            "keyword": keyword,
             "dateSort": "false",
             "curPage": 0,
             "pageSize": 10
@@ -64,7 +64,7 @@ class CgtnSpider(object):
             raise HttpInternalServerError
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
-    def get_cgtn_page_data(self, num):
+    def get_cgtn_page_data(self, num, keyword):
         logger.info('Processing get cgtn news key word ！')
         data_list = []
         for i in range(num):
@@ -78,10 +78,10 @@ class CgtnSpider(object):
                 "Host": "api.cgtn.com",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Accept-Language": "zh-CN,zh;q=0.9",
-                "Referer": "https://www.cgtn.com/search?keyword={}".format(self.keyword.replace(" ", "%20"))
+                "Referer": "https://www.cgtn.com/search?keyword={}".format(keyword.replace(" ", "%20"))
             }
             data = {
-                "keyword": self.keyword,
+                "keyword": keyword,
                 "dateSort": "false",
                 "curPage": i,
                 "pageSize": 10
@@ -121,13 +121,21 @@ class CgtnSpider(object):
                 if not content:
                     return
                 content = "".join(content)
-                acticle_data.update(contents=content)
+                section = x_html.xpath('//*[@class="section"]/text()')
+                if not section:
+                    print(111)
+                section = "".join(section).strip()
+                editor = x_html.xpath('//*[@class="news-author news-text"]/text()')
+                if not editor:
+                    print(2222)
+                article_auth = "".join(editor).strip()
+                acticle_data.update(editor=article_auth, section=section, contents=content)
                 del acticle_data["url"]
             return acticle_data
         except Exception as e:
             raise HttpInternalServerError
 
-    def parse_acticle_url(self, data):
+    def parse_acticle_url(self, data, keyword):
         dic_list, url_list = [], []
         for dic in data:
             _str = dic.get("publishTimeNum")
@@ -136,15 +144,16 @@ class CgtnSpider(object):
                 continue
             title = dic.get("shortHeadline")
             url = dic.get("shareUrl")
-            img = dic.get("qrUrl")
+            api_editor = dic.get("editorName")
             if url in url_list:
                 continue
+            url_list.append(url)
             dic_list.append(dict(
                 title=title,
                 date=_date,
                 url=url,
-                img=img,
-                keyword=self.keyword
+                api_editor=api_editor,
+                keyword=keyword
             ))
         return dic_list
 
@@ -160,57 +169,49 @@ class CgtnSpider(object):
 
     def save_data_to_excel(self, data_list):
         print("Being data save to excel..")
-        excel_title = ["title", "date", "contents", "keyword", "img"]
+        excel_title = ["title", "date", "editor", "api_editor", "section", "keyword", "contents"]
         _list = []
         for data_dic in data_list:
             _list.append([
                 data_dic.get("title", None),
                 data_dic.get("date", None),
-                data_dic.get("contents", None),
+                data_dic.get("editor", None),
+                data_dic.get("api_editor", None),
+                data_dic.get("section", None),
                 data_dic.get("keyword", None),
-                data_dic.get("img", None),
+                data_dic.get("contents", None),
             ])
 
         df = pd.DataFrame(_list, columns=excel_title)
-        _time = str(time.time())
-        df.to_excel("{}.xlsx".format(self.keyword), encoding="utf-8", index=False)
+        df.drop_duplicates(subset=["title"], keep='first', inplace=True)
+        df2 = df.sort_values(by="date", ascending=False)
+        df2.to_excel(r"C:\Users\dell\Desktop\cgtn\{}.xlsx".format(self.keyword), encoding="utf-8", index=False)
         print("保存成功...")
 
 
 if __name__ == '__main__':
     keyword_list = [
-        # 'us china trade war',
-        # 'us china trade conflict',
-        # 'us china trade dispute',
-        # 'US China trade negotiations',
-        # 'us china trade talks',
-        # 'us china trade agreement',
-        # 'us China trade truce',
-        # 'us china trade ceasefire',
-        # 'us china trade spat',
-        # 'Sino US tariffs',
-        # 'huawei china',
-        # 'rare earth china',
-        # 'Forced technology issues china',
-        'forced technology transfer'
+        'US China trade war',
+        'US China trade conflict',
+        'US China trade dispute',
+        'US China trade negotiation',
+        'US China trade talk',
+        'US China trade agreement',
+        'US China trade truce',
+        'US China trade ceasefire',
+        'US China trade tariff',
+        'huawei US China trade',
+        'rare earth US China trade',
+        'forced technology transfer US China trade',
+        'G20 US china trade',
     ]
     data_list = []
     page_data_list, acticle_list, threads = [], [], []
     for keyword in keyword_list:
         cgtn = CgtnSpider(keyword)
-        num = cgtn.get_cgtn_data()
-        dic = cgtn.get_cgtn_page_data(num)
-        page_data_list.extend(dic)
-        #     worker = WorkerThread(page_data_list, cgtn.get_fox_page_data, (url, ))
-        #     worker.start()
-        #     threads.append(worker)
-        # for work in threads:
-        #     work.join(1)
-        #     if work.isAlive():
-        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-        #         threads.append(work)
-        threads = []
-        acticle_url_list = cgtn.parse_acticle_url(page_data_list)
+        num = cgtn.get_cgtn_data(keyword)
+        page_data_list.extend(cgtn.get_cgtn_page_data(num, keyword))
+        acticle_url_list = cgtn.parse_acticle_url(page_data_list, keyword)
         for acticle_dic in acticle_url_list:
             # data = cgtn.get_article_data(acticle_dic)
             # acticle_list.append(data)
@@ -224,3 +225,6 @@ if __name__ == '__main__':
                 threads.append(work)
 
         cgtn.save_data_to_excel(acticle_list)
+        page_data_list = []
+        acticle_list = []
+        threads = []

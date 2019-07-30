@@ -6,7 +6,7 @@ from service.db.utils.redis_utils import RedisClient
 accounts_db = RedisClient('accounts', "weibo")
 accounts = accounts_db.all()
 
-file_name = 'PythonBook.csv'
+file_name = 'weibo.csv'
 
 data = [
     dict(account=k, password=v)

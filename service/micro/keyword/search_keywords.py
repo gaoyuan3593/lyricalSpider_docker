@@ -25,7 +25,7 @@ class SearchKeyword(object):
         self.keyword_list = self.relative_word.split(";")
 
     def _run(self):
-        logger.info("Begin search keyword ...")
+        logger.info("Begin search keyword run ...")
         data_dic = dict(
             status=200,
             task_id=self.seq_no,

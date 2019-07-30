@@ -11,9 +11,8 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.math_utils import china_news_str_to_format_time
 from service.micro.news import YOUTH_NEWS, NEWS_ES_TYPE
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
+from service.micro.news.utils.search_es import SaveDataToEs
 
 
 class YouThSpider(object):
@@ -25,45 +24,6 @@ class YouThSpider(object):
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
-        self.es = ElasticsearchClient()
-
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
-        try:
-            result = self.es.dsl_search(NEWSDETAIL, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def save_one_data_to_es(self, data, dic):
-        """
-        将为爬取的数据存入es中
-        :param data_list: 数据
-        :return:
-        """
-        try:
-            _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
-                return
-            self.es.insert(NEWSDETAIL, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
-        except Exception as e:
-            raise e
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -138,7 +98,8 @@ class YouThSpider(object):
             _content = "".join(content).strip()
             if not _title or not _content:
                 return
-            _publish_time = re.findall(r"(\d+-\d+-\d+ \d+:\d+)", resp)[0]
+            publish_time = re.findall(r"(\d+-\d+-\d+ \d+:\d+)", resp)[0]
+            _publish_time = datetime.strptime(publish_time, "%Y-%m-%d %H:%M")
             source = x_html.xpath('//*[@class="la_t_b"]/a/text()') or \
                      x_html.xpath('//*[@class="pwz"]/a/text()') or \
                      x_html.xpath('//*[@class="www"]/span[3]/text()')
@@ -157,11 +118,11 @@ class YouThSpider(object):
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
                 type=NEWS_ES_TYPE.youth_news,
-                content=_content,  # 内容
+                contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
-            self.save_one_data_to_es(data, dic)
+            dic = {"article_id": article_id}
+            SaveDataToEs.save_one_data_to_es(data, dic)
             return data
         except Exception as e:
             logger.exception(e)

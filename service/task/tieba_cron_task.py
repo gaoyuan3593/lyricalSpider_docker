@@ -25,9 +25,12 @@ def run_tasks():
 
 
 if __name__ == '__main__':
+    import pytz
+
+    tz = pytz.timezone('America/New_York')
     sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '5000'})
 
     # 百度贴吧定时任务
-    sched.add_job(run_tasks, 'interval', minutes=6, next_run_time=datetime.now() + timedelta(seconds=5))
+    sched.add_job(run_tasks, 'interval', minutes=10, next_run_time=datetime.now(tz) + timedelta(seconds=5))
 
     sched.start()

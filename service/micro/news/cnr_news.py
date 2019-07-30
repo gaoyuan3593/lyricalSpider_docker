@@ -13,7 +13,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.math_utils import xinhua_str_to_format_time
 from service.micro.news import CNR_NEWS, NEWS_ES_TYPE
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, NEWSDETAIL
+from service.micro.news.utils.search_es import SaveDataToEs
 
 
 class CnrSpider(object):

@@ -20,10 +20,7 @@ class HuanQiuSpider(object):
     __name__ = 'huan qiu news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class HuanQiuSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "环球网_全球生活新门户_环球时报旗下网站" in response.text:
                 for url in HUANQIU_NEWS:
@@ -87,13 +84,13 @@ class HuanQiuSpider(object):
         _content, _editor, _source = "", "", "环球网"
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath("//*[@class='tle']/text()")
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='la_con']/p/text()")
             _content = "".join(content).strip()
             if not _title or not _content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("//*[@class='la_t_a']/text()")
             if not publish_time:
                 publish_time = x_html.xpath('//*[@id="pubtime_baidu"]/text()')
             _publish_time = china_news_str_to_format_time(publish_time)

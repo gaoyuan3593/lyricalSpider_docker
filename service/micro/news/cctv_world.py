@@ -21,10 +21,7 @@ class CctvWorldSpider(object):
     __name__ = 'cctv world news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -42,7 +39,7 @@ class CctvWorldSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "gb2312"
             if "央视国际网" in response.text:
                 soup = BeautifulSoup(response.text, "lxml")
@@ -101,7 +98,7 @@ class CctvWorldSpider(object):
         try:
             x_html = etree.HTML(resp)
             _title = _data.get("title")
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='setfont14']/text()")
             if not content:
                 content = x_html.xpath('//*[@class="setfont14"]/text()')
             _content = "".join(content).strip().replace("\r\n", "")

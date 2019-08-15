@@ -20,10 +20,7 @@ class DangJianSpider(object):
     __name__ = 'dang jian news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def use_proxies(self):
@@ -44,7 +41,7 @@ class DangJianSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "党建网 - 中宣部主管全国性党建网站" in response.text:
                 for url in DANG_JIAN:
@@ -94,10 +91,10 @@ class DangJianSpider(object):
         _publish_time = datetime.now() + timedelta(minutes=-10)
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@id="title_tex"]/text()') or \
                     x_html.xpath('//*[@id="title_tex"]/strong/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='TRS_Editor']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="Custom_UnionStyle"]/p/text()') or \
@@ -109,7 +106,7 @@ class DangJianSpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@id="time_tex"]/text()') or \
                            x_html.xpath('//*[@id="apublishtime"]/text()')
             if publish_time:
                 _time = "".join(publish_time)

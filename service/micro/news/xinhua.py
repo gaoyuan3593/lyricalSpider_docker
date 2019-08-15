@@ -20,10 +20,7 @@ class XinHuaSpider(object):
     __name__ = 'xinhua news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class XinHuaSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "首页" in response.text and "滚动" in response.text:
                 for url in XINHUA:
@@ -84,12 +81,12 @@ class XinHuaSpider(object):
         _content, _editor = "", ""
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath("/html/body/div[2]/div[3]/div/div/text()") or \
                     x_html.xpath('//*[@class="h-title"]/text()') or \
                     x_html.xpath('//*[@id="title"]/text()') or \
                     x_html.xpath('//*[@id="conTit"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@id='p-detail']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@id="article"]/div/p/text()') or \
@@ -105,7 +102,7 @@ class XinHuaSpider(object):
                     _content = _str
             else:
                 _content = "".join(content).strip()
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath("/html/body/div[2]/div[3]/div/div[2]/span[1]/text()") or \
                            x_html.xpath('//*[@id="pubtime"]/text()') or \
                            x_html.xpath('//*[@id="conTit"]/div/span[1]/span/text()') or \
                            x_html.xpath('//*[@class="h-time"]/text()') or \

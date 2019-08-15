@@ -22,9 +22,7 @@ class ChinaSoSpider(object):
     __name__ = 'china so suo news'
 
     def __init__(self, data):
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -45,7 +43,7 @@ class ChinaSoSpider(object):
         url_list = []
         try:
             for i in range(2, 21):
-                url = "http://www.chinaso.com/in/tabtoutiao/index_{}.shtml".format(i)
+                url = "{}in/tabtoutiao/index_{}.shtml".format(self.domain, i)
                 response = self.s.get(url, headers=headers, verify=False)
                 response.encoding = "utf-8"
                 if "内容列表" in response.text:
@@ -99,12 +97,12 @@ class ChinaSoSpider(object):
         _publish_time = datetime.now() + timedelta(minutes=-10)
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@class="detail-title"]/text()') or \
                     x_html.xpath('//*[@class="t_newsinfo"]/text()') or \
                     x_html.xpath('//*[@class="xwzx_wname01"]/text()') or \
                     x_html.xpath('//*[@class="h-title"]/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='detail-main']/p/text()")
             if not content:
                 _str = ""
                 soup = BeautifulSoup(resp, "lxml"). \
@@ -120,7 +118,7 @@ class ChinaSoSpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@class="detail-time"]/span/text()') or \
                            x_html.xpath('//*[@class="h-time"]/text()')
             if publish_time:
                 publish_time = "".join(publish_time).strip()

@@ -20,10 +20,7 @@ class XinHuaNetSpider(object):
     __name__ = 'xin hua net news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def use_proxies(self):
@@ -44,7 +41,7 @@ class XinHuaNetSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False, timeout=20)
+            response = self.s.get(self.domain, headers=headers, verify=False, timeout=20)
             response.encoding = "utf-8"
             if "新华每日电讯" in response.text:
                 parms = r"http://news.xinhuanet.com/mrdx/\d+-\d+/\d+/\w+.htm"
@@ -97,9 +94,9 @@ class XinHuaNetSpider(object):
             x_html = etree.HTML(resp)
             if not x_html:
                 return
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath('//*[@id="Title"]/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@id='Content']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="des"]/p[1]/text()')
@@ -108,7 +105,7 @@ class XinHuaNetSpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath('//*[@class="gray fs12"]/text()')
             if publish_time:
                 _time = "".join(publish_time)
                 try:

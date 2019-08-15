@@ -20,10 +20,7 @@ class PeopleSpider(object):
     __name__ = 'people news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class PeopleSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "gb2312"
             if "人民网" in response.text:
                 for url in PEOPLE:
@@ -83,14 +80,14 @@ class PeopleSpider(object):
         _content = ""
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath("//div[contains(@class,'text_title')]/h1/text()")
             if not title:
                 title = x_html.xpath('/html/body/div[4]/div[1]/h1/text()') or \
                         x_html.xpath('/html/body/div[7]/div[1]/div/h1/text()') or \
                         x_html.xpath('//*[@class="title"]/h2/text()') or \
                         x_html.xpath('/html/body/div/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@id='rwb_zw']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('/html/body/div[7]/div[1]/div/div[2]/p/text()') or \
@@ -111,7 +108,7 @@ class PeopleSpider(object):
                     _content = _str
             else:
                 _content = "".join(content).strip()
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("//div[contains(@class,'text_title')]/div/div[1]/text()")
             if not publish_time:
                 publish_time = x_html.xpath('/html/body/div[7]/div[1]/div/p[2]/text()') or \
                                x_html.xpath('//div[@class="artOri"]/text()') or \
@@ -155,7 +152,7 @@ def people_run():
     threads = []
     data = {
         "siteName": "人民网",
-        "domain": "www.people.com.cn",
+        "domain": "http://www.people.com.cn/",
         "startURL": [
             "http://www.people.com.cn/"
         ],

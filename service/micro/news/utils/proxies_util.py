@@ -2,19 +2,18 @@
 # -*- coding: utf-8 -*-
 
 import random
-from service.utils.yaml_tool import get_by_name_yaml
+
+from service.core.utils.proxy import get_proxy_pool
+from service import logger
 
 
 def get_proxies():
-    conf = get_by_name_yaml("proxy")
-    proxym_meta = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
-        "host": conf["host"],
-        "port": conf["port"],
-        "user": conf["user"],
-        "pass": conf["password"],
-    }
-
-    proxies = random.choice([
-        {'http': proxym_meta, 'https': proxym_meta}
-    ])
-    return proxies
+    proxy_pool = get_proxy_pool()
+    if not proxy_pool or len(proxy_pool) == 0:
+        return None
+    proxy = random.choice(proxy_pool)
+    logger.info("proxy : {}".format(proxy))
+    http_proxy = "http://" + proxy
+    https_proxy = "https://" + proxy
+    proxym_meta = {'http': http_proxy, 'https': https_proxy}
+    return proxym_meta

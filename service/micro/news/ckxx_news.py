@@ -20,10 +20,7 @@ class CanKaoXiaoXiSpider(object):
     __name__ = 'can kao xiao xi news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class CanKaoXiaoXiSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "《参考消息》官方网站_参考消息电子版_参考消息报" in response.text:
                 for url in CKXX_NEWS:
@@ -86,17 +83,17 @@ class CanKaoXiaoXiSpider(object):
         _content, _editor, _source = "", "", "参考消息网"
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath("//*[@class='articleHead']/text()")
             if not title:
                 title = x_html.xpath('//*[@class="h2 fz-23 YH"]/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='articleText']/p/text()")
             if not content:
                 content = x_html.xpath('//*[@id="ctrlfscont"]/p/text()')
                 _content = "".join(content).strip()
             else:
                 _content = "".join(content).strip()
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("//*[@if='pubtime_baidu']/text()")
             if not publish_time:
                 publish_time = x_html.xpath('//*[@id="pubtime_baidu"]/text()')
             _publish_time = xinhua_str_to_format_time(publish_time)

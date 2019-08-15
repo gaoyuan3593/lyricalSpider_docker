@@ -20,10 +20,7 @@ class HaiWaiNetSpider(object):
     __name__ = 'hai wai net news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def use_proxies(self):
@@ -44,7 +41,7 @@ class HaiWaiNetSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "海外网_人民日报海外版官方网站_全球华人的网上家园" in response.text:
                 for url in HAI_WAI_NET:
@@ -96,10 +93,10 @@ class HaiWaiNetSpider(object):
             x_html = etree.HTML(resp)
             if not x_html:
                 return
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@class="show_wholetitle"]/text()') or \
                     x_html.xpath('/html/body/div/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='contentMain']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="des"]/p[1]/text()') or \
@@ -109,7 +106,7 @@ class HaiWaiNetSpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@class="first"]/text()') or \
                            x_html.xpath('//*[@class="newsMess"]/span[1]/text()')
             if publish_time:
                 _time = "".join(publish_time)

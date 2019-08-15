@@ -20,10 +20,7 @@ class GMWSpider(object):
     __name__ = 'gmw news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class GMWSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "光明网_新闻视野、文化视角、思想深度、理论高度" in response.text:
                 for url in GMW_NEWS:
@@ -89,10 +86,10 @@ class GMWSpider(object):
         _publish_time = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@class="u-title"]/text()') or \
                     x_html.xpath('//*[@id="artBox"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='u-mainText']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="u-mainText"]/p/font/text()') or \
@@ -102,7 +99,7 @@ class GMWSpider(object):
                 _content = "".join(content).strip()
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@class="m-con-time"]/text()') or \
                            x_html.xpath('//*[@class="g-tips"]/span[3]/text()')
             _publish_time = china_news_str_to_format_time(publish_time)
             source = x_html.xpath('//*[@id="infoAFun"]/div/span[2]/text()') or \

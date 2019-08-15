@@ -20,10 +20,7 @@ class ChinaEconomySpider(object):
     __name__ = 'china economy news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class ChinaEconomySpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "gb2312"
             if "中国经济网――国家经济门户" in response.text:
                 for url in CHINA_ECONOMY:
@@ -93,10 +90,10 @@ class ChinaEconomySpider(object):
         _publish_time = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@id="articleTitle"]/text()') or \
                     x_html.xpath('//*[@id="artBox"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='TRS_Editor']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="Custom_UnionStyle"]/p/text()')
@@ -105,7 +102,7 @@ class ChinaEconomySpider(object):
                 _content = "".join(content).strip()
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("//*[@id='articleTime']/text()")
             _publish_time = china_news_str_to_format_time(publish_time)
             source = x_html.xpath('//*[@id="articleSource"]/text()')
             if source:

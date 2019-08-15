@@ -20,10 +20,7 @@ class QsThrorySpider(object):
     __name__ = 'hai wai net news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def use_proxies(self):
@@ -44,7 +41,7 @@ class QsThrorySpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "求是网 - 思想建党 理论强党" in response.text:
                 parms = r"http://www.qstheory.cn/\w+/\d+-\d+/\d+/\w+.htm"
@@ -94,11 +91,11 @@ class QsThrorySpider(object):
             x_html = etree.HTML(resp)
             if not x_html:
                 return
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath('//*[@class="headtitle"]/h1/text()')
             if not title:
                 title = x_html.xpath('//*[@class="inner"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='highlight']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="text"]/p/text()') or \
@@ -108,7 +105,7 @@ class QsThrorySpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@class="headtitle"]/span/text()') or \
                            x_html.xpath('//*[@class="pubtime"]/text()')
             if publish_time:
                 _time = "".join(publish_time)

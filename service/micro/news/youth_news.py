@@ -19,10 +19,7 @@ class YouThSpider(object):
     __name__ = 'china your th news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -40,7 +37,7 @@ class YouThSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "gb2312"
             if "中国青年网_青年温度、青春靓度、青网态度" in response.text:
                 for url in YOUTH_NEWS:
@@ -89,12 +86,12 @@ class YouThSpider(object):
         _content, _editor, _source = "", "", "中国青年网"
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@class="con_biao"]/text()') or \
                     x_html.xpath('//*[@class="pbt"]/text()') or \
                     x_html.xpath('//*[@class="top_biao"]/p/text()') or \
                     x_html.xpath('//*[@class="page_title"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='TRS_Editor']/p/text()")
             _content = "".join(content).strip()
             if not _title or not _content:
                 return

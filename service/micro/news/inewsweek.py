@@ -20,10 +20,7 @@ class LegalDailySpider(object):
     __name__ = 'inewsweek news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class LegalDailySpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "gb2312"
             if "中国新闻周刊" in response.text:
                 for i in range(1, 100):
@@ -105,10 +102,10 @@ class LegalDailySpider(object):
                 return dic
             else:
                 logger.error("get inewsweek news detail failed")
-                # self.use_proxies()
                 raise InvalidResponseError
         except Exception as e:
             time.sleep(1)
+            self.s.proxies = get_proxies()
             raise InvalidResponseError
 
     def parse_news_detail(self, _data):
@@ -121,7 +118,7 @@ class LegalDailySpider(object):
             if not x_html:
                 return
             title = _data.get("title")
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='contenttxt']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="contenttxt"]/p/span/text()') or \
@@ -140,11 +137,14 @@ class LegalDailySpider(object):
                     _editor = editor[0]
             article_id = _data.get("article_id")
             date_time = _data.get("pubtime")
-            _publish_time = datetime.strptime(date_time[:-3], "%Y-%m-%d %H:%M")
+            try:
+                _publish_time = datetime.strptime(date_time[:-3], "%Y-%m-%d %H:%M")
+            except:
+                _publish_time = datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
             data = dict(
                 title=title,  # 标题
                 article_id=article_id,  # 文章id
-                date=_data.get("pubtime"),  # 发布时间
+                date=_publish_time,  # 发布时间
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
                 news_url=_data.get("news_url"),  # url连接

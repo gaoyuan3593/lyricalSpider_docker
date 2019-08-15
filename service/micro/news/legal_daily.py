@@ -21,10 +21,7 @@ class LegalDailySpider(object):
     __name__ = 'leagl daily news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -42,7 +39,7 @@ class LegalDailySpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "法制网" in response.text:
                 for url in LEGAL_DAILY:
@@ -54,7 +51,6 @@ class LegalDailySpider(object):
             return list(set(url_list))
         except Exception as e:
             time.sleep(1)
-            self.use_proxies()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -93,10 +89,10 @@ class LegalDailySpider(object):
             x_html = etree.HTML(resp)
             if not x_html:
                 return
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@class="f18 b black02 yh center"]/text()') or \
                     x_html.xpath('//*[@id="CONTENT"]/h1/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='f14 black02 yh']/p/text()")
             if "全文阅读请参见" in "".join(content):
                 soup = BeautifulSoup(resp, "lxml")
                 tag = soup.find("dd", attrs={"class": "f14 black02 yh"})
@@ -109,7 +105,7 @@ class LegalDailySpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@class="f12 balck02 yh"]/text()') or \
                            x_html.xpath('//*[@id="CONTENT-INFO"]/span/text()')
             if publish_time:
                 _time = "".join(publish_time)

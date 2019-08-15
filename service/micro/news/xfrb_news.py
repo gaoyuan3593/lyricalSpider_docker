@@ -19,10 +19,7 @@ class XFRBSpider(object):
     __name__ = 'xiao fei ri bao news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -40,7 +37,7 @@ class XFRBSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "消费日报-贴近民生 服务百姓" in response.text:
                 for url in XFRB_NEWS:
@@ -90,9 +87,9 @@ class XFRBSpider(object):
         _publish_time = datetime.now() + timedelta(minutes=-10)
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath('//*[@class="title"]/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@class='content_div']/p/text()")
             if not "".join(content).split():
                 content = x_html.xpath('//*[@class="content_div"]/div/span/span/text()') or \
                           x_html.xpath('//*[@class="content_div"]/p/span/text()') or \
@@ -105,7 +102,7 @@ class XFRBSpider(object):
                 _content = "".join(content).strip()
             if not title or not _content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("/html/body/div/div/h3/text()")
             if publish_time:
                 publish_time = "".join(publish_time).strip()
                 try:

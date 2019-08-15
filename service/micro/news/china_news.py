@@ -20,10 +20,7 @@ class ChinaNewsSpider(object):
     __name__ = 'china news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class ChinaNewsSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
             if "首页" in response.text and "滚动" in response.text:
                 for url in CHINA_NEWS:
@@ -83,9 +80,9 @@ class ChinaNewsSpider(object):
         _content = ""
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath)
+            title = x_html.xpath("//*[@id='cont_1_1_2']/h1/text()")
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@id='cont_1_1_2']/div/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@id="cont_1_1_2"]/div[6]/div/img/@src')
@@ -99,7 +96,7 @@ class ChinaNewsSpider(object):
                     _content = _str
             else:
                 _content = "".join(content).strip()
-            publish_time = x_html.xpath(self.publish_time_xpath)
+            publish_time = x_html.xpath("//*[@id='cont_1_1_2']/div[4]/div[2]/text()")
             _publish_time = china_news_str_to_format_time(publish_time)
             source = x_html.xpath("//*[@id='cont_1_1_2']/div[4]/div[2]/text()")
             _source = str(source[0]).split("来源：")[1].strip() if source else "中国新闻网"

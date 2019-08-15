@@ -20,10 +20,7 @@ class CyolSpider(object):
     __name__ = 'cyol news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
 
     def random_num(self):
@@ -41,7 +38,7 @@ class CyolSpider(object):
         }
         url_list = []
         try:
-            response = self.s.get(self.start_url, headers=headers, verify=False)
+            response = self.s.get(self.domain, headers=headers, verify=False)
             if "国际在线：向世界报道中国，向中国报道世界_中国国际广播电台" in response.text:
                 for url in CRI_NEWS:
                     parms = r"{}\d+/\w+-\w+-\w+-\w+-\w+.html|{}\w+/\d+/\w+-\w+-\w+-\w+-\w+.html".format(url, url)
@@ -87,14 +84,14 @@ class CyolSpider(object):
         _publish_time = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath(self.title_xpath) or \
+            title = x_html.xpath('//*[@id="goTop"]/text()') or \
                     x_html.xpath('//*[@class="Atitle"]/text()') or \
                     x_html.xpath('//*[@class="con-title clearfix"]/h3/text()') or \
                     x_html.xpath('//*[@id="atitle"]/text()') or \
                     x_html.xpath('//*[@class="caption marginTop15"]/p/text()') or \
                     x_html.xpath('//*[@class="caption marginTop30"]/p/text()')
             _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath(self.content_xpath)
+            content = x_html.xpath("//*[@id='abody']/p/text()")
             if not content:
                 _str = ""
                 content = x_html.xpath('//*[@class="u-mainText"]/p/font/text()') or \
@@ -104,7 +101,7 @@ class CyolSpider(object):
                 _content = "".join("".join(content).strip().split())
             if not title or not content:
                 return
-            publish_time = x_html.xpath(self.publish_time_xpath) or \
+            publish_time = x_html.xpath('//*[@id="acreatedtime"]/text()') or \
                            x_html.xpath('//*[@id="apublishtime"]/text()')
             _publish_time = china_news_str_to_format_time(publish_time)
             source = x_html.xpath('//*[@id="asource"]/a/text()') or \

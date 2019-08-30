@@ -162,7 +162,7 @@ def people_run():
         "startURL": [
             "http://www.people.com.cn/"
         ],
-        "website": "all_news_details",
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

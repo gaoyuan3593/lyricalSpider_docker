@@ -22,6 +22,7 @@ class CyolSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -138,10 +139,13 @@ class CyolSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return CyolSpider(*args, **kwargs)
 
 
 def cyol_news_run():
@@ -152,6 +156,7 @@ def cyol_news_run():
         "startURL": [
             "http://www.cri.cn/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

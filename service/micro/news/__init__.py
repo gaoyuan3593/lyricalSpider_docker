@@ -376,7 +376,23 @@ K618_NEWS = [
 
 # 消费日报
 XFRB_NEWS = [
-    "http://www.xfrb.com.cn/html/"
+    "/article/news/",  # 头条
+    "/article/scene/",  # 第一现场
+    "/article/depth/",  # 深度解析
+    "/article/survey/",  # 消费调查
+    "/article/consultation/",  # 权威解读
+    "/article/safe/",  # 食品
+    "/article/proposition/",  # 日化
+    "/article/car/",  # 汽车
+    "/article/explain/",  # 房产
+    "/article/home/",  # 家居
+    "/article/household/",  # 家电
+    "/article/education/",  # 教育
+    "/article/tour/",  # 旅游
+    "/article/health/",  # 健康
+    "/article/format/",  # 科技
+    "/article/culture/",  # 文娱
+    "/article/consumption/",  # 新消费
 ]
 
 # 参考消息网
@@ -552,7 +568,6 @@ HAI_WAI_NET = [
     'http://haiyang.haiwainet.cn/',  # 海洋
     'http://xianyu.haiwainet.cn/',  # 县域
 ]
-
 
 # 各个新闻网站 type
 NEWS_ES_TYPE = enum(

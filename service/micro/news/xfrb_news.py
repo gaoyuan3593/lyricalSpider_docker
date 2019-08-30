@@ -21,6 +21,7 @@ class XFRBSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -39,11 +40,12 @@ class XFRBSpider(object):
         try:
             response = self.s.get(self.domain, headers=headers, verify=False)
             response.encoding = "utf-8"
-            if "消费日报-贴近民生 服务百姓" in response.text:
+            if "消费日报网--贴近民生 服务百姓" in response.text:
                 for url in XFRB_NEWS:
-                    parms = r"{}\w+/\w+.html|{}\w+/\w+/\w+.html|{}\w+/\w+/\w+/\w+.html".format(url, url, url)
+                    parms = r"{}\d+.html".format(url, url, url)
                     _url_list = re.findall(parms, response.text)
-                    url_list.extend(_url_list)
+
+                    url_list.extend(["http://www.xfrb.com.cn" + _str for _str in _url_list])
             else:
                 raise InvalidResponseError
             return list(set(url_list))
@@ -84,36 +86,36 @@ class XFRBSpider(object):
         news_url = _data.get("news_url")
         article_id = _data.get("article_id")
         _content, _editor, _source = "", "", "消费日报网"
-        _publish_time = datetime.now() + timedelta(minutes=-10)
+        _publish_time = datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
         try:
             x_html = etree.HTML(resp)
-            title = x_html.xpath('//*[@class="title"]/text()')
-            _title = str(title[0]).strip() if title else ""
-            content = x_html.xpath("//*[@class='content_div']/p/text()")
+            title = x_html.xpath('//*[@class="margin-top-15"]/text()')
+            if not title:
+                title = x_html.xpath('//*[@class="margin-top-15"]/text()')
+            _title = "".join(title).strip()
+            content = x_html.xpath('//*[@class="cont"]/p/text()')
             if not "".join(content).split():
-                content = x_html.xpath('//*[@class="content_div"]/div/span/span/text()') or \
-                          x_html.xpath('//*[@class="content_div"]/p/span/text()') or \
-                          x_html.xpath('//*[@class="TRS_Editor"]/p/text()')
-
-                if not "".join("".join(content).split()):
-                    content = x_html.xpath('//*[@class="content_div"]/p/span/span/text()')
+                content = x_html.xpath('//*[@class="cont"]/p/span/text()')
                 _content = "".join(content).strip()
             else:
                 _content = "".join(content).strip()
             if not title or not _content:
                 return
-            publish_time = x_html.xpath("/html/body/div/div/h3/text()")
+            publish_time = x_html.xpath('//*[@class="cite"]/cite/text()')
             if publish_time:
                 publish_time = "".join(publish_time).strip()
                 try:
-                    _publish_time = re.findall(r"发布时间：(\d+-\d+-\d+ \d+:\d+)", publish_time)[0]
+                    _publish_time = re.findall(r"(\d+-\d+-\d+ \d+:\d+)", publish_time)[0]
                     _publish_time = datetime.strptime(_publish_time, "%Y-%m-%d %H:%M")
-                    _source = re.findall(r"来源.(.*)", publish_time)[0]
                 except:
                     pass
-            editor = re.findall(r"【责任编辑：(\w+)】", resp)
+            try:
+                _source = "".join(x_html.xpath('//*[@class="cite"]/cite/text()')[1])
+            except:
+                pass
+            editor = x_html.xpath('//*[@class="label_editor"]/span/text()')
             if editor:
-                _editor = editor[0]
+                _editor = "".join(editor).strip()
             data = dict(
                 title=_title,  # 标题
                 article_id=article_id,  # 文章id
@@ -125,10 +127,13 @@ class XFRBSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return XFRBSpider(*args, **kwargs)
 
 
 def xfrb_news_run():
@@ -139,6 +144,7 @@ def xfrb_news_run():
         "startURL": [
             "http://www.xfrb.com.cn/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

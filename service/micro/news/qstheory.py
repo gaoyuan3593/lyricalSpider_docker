@@ -22,6 +22,7 @@ class QsThrorySpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def use_proxies(self):
         self.s.proxies = get_proxies()
@@ -124,7 +125,7 @@ class QsThrorySpider(object):
             try:
                 date = datetime.strptime(_publish_time, "%Y-%m-%d %H:%M")
             except:
-                date = datetime.now() + timedelta(minutes=-10)
+                date = datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
             data = dict(
                 title=_title,  # 标题
                 article_id=article_id,  # 文章id
@@ -136,10 +137,13 @@ class QsThrorySpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return QsThrorySpider(*args, **kwargs)
 
 
 def qsthory_run():
@@ -150,6 +154,7 @@ def qsthory_run():
         "startURL": [
             "http://www.qstheory.cn/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

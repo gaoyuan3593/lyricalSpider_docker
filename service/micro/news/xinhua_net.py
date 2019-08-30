@@ -22,6 +22,7 @@ class XinHuaNetSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def use_proxies(self):
         self.s.proxies = get_proxies()
@@ -136,10 +137,13 @@ class XinHuaNetSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return XinHuaNetSpider(*args, **kwargs)
 
 
 def xinhua_net_run():
@@ -150,6 +154,7 @@ def xinhua_net_run():
         "startURL": [
             "http://mrdx.xinhuanet.com/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

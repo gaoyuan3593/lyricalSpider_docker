@@ -92,7 +92,7 @@ def people_str_to_format_time(_str):
             _str = old_str.split("年")[0] + "-" + old_str.split("年")[1].replace("月", "-").replace("日", " ")
             return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except:
-        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def china_str_to_format_time(_str):
@@ -113,7 +113,7 @@ def china_str_to_format_time(_str):
                     old_str = old_str + (datetime.now() + timedelta(minutes=--random.uniform(1, 10))).strftime(" %H:%M")
                 return datetime.strptime(old_str, "%Y-%m-%d %H:%M")
     except:
-        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def xinhua_str_to_format_time(_str):
@@ -126,7 +126,7 @@ def xinhua_str_to_format_time(_str):
             _str = _str[:-3]
             return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except:
-        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def china_news_str_to_format_time(_str):
@@ -146,7 +146,7 @@ def china_news_str_to_format_time(_str):
                       (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime(" %H:%M")
             return datetime.strptime(new_str, "%Y-%m-%d %H:%M")
     except:
-        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def chinadaily_str_to_format_time(_str):
@@ -163,7 +163,7 @@ def chinadaily_str_to_format_time(_str):
                 return datetime.strptime(_str, "%Y-%m-%d %H:%M")
 
     except:
-        return datetime.now() + timedelta(minutes=-random.uniform(1, 10))
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def sougou_str_to_format_time(_str):

@@ -10,6 +10,7 @@ from lxml import etree
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
+from service.micro.news.utils.proxies_util import get_proxies
 from service.micro.utils import ua
 from service.micro.utils.math_utils import china_str_to_format_time
 from service.micro.news import CHINA, NEWS_ES_TYPE
@@ -22,9 +23,13 @@ class ChinaSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
+
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self):
@@ -68,8 +73,9 @@ class ChinaSpider(object):
                 return dict(article_id=article_id, resp=response.text, news_url=news_url)
             else:
                 logger.error("get news detail failed")
-                raise InvalidResponseError
+                return
         except Exception as e:
+            self.use_proxies()
             raise InvalidResponseError
 
     def parse_news_detail(self, _data):
@@ -147,10 +153,13 @@ class ChinaSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return ChinaSpider(*args, **kwargs)
 
 
 def china_spider_run():
@@ -161,6 +170,7 @@ def china_spider_run():
         "startURL": [
             "http://www.china.com.cn/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

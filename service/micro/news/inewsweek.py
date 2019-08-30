@@ -16,12 +16,13 @@ from service.micro.news import NEWS_ES_TYPE
 from service.micro.news.utils.search_es import SaveDataToEs
 
 
-class LegalDailySpider(object):
+class InewsweekSpider(object):
     __name__ = 'inewsweek news'
 
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -100,6 +101,8 @@ class LegalDailySpider(object):
                 logger.info("get inewsweek news detail success url: {}".format(url))
                 dic.update(resp=response.text)
                 return dic
+            elif response.status_code == 502 or response.status_code == 503:
+                return
             else:
                 logger.error("get inewsweek news detail failed")
                 raise InvalidResponseError
@@ -152,10 +155,13 @@ class LegalDailySpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return InewsweekSpider(*args, **kwargs)
 
 
 def inewsweek_run():
@@ -167,6 +173,7 @@ def inewsweek_run():
         "startURL": [
             "http://www.inewsweek.cn/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",
@@ -208,35 +215,20 @@ def inewsweek_run():
         ]
     }
     threads = []
-    china = LegalDailySpider(data)
+    china = InewsweekSpider(data)
     try:
         news_url_list = china.get_news_all_url()
     except Exception as e:
         logger.exception(e)
         return
     for dic in news_url_list:
-        # try:
-        #     detail_list.append(china.get_news_detail(dic))
-        # except:
-        #     continue
-        worker = WorkerThread(detail_list, china.get_news_detail, (dic,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
-    threads = []
+        try:
+            detail_list.append(china.get_news_detail(dic))
+        except:
+            continue
+
     for _data in detail_list:
-        worker = WorkerThread([], china.parse_news_detail, (_data,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
+        china.parse_news_detail(_data,)
 
 
 if __name__ == '__main__':

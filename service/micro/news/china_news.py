@@ -22,6 +22,7 @@ class ChinaNewsSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -113,11 +114,14 @@ class ChinaNewsSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
             return data
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return ChinaNewsSpider(*args, **kwargs)
 
 
 def china_news_run():
@@ -131,6 +135,7 @@ def china_news_run():
         "startURL": [
             "http://www.chinanews.com/"
         ],
+        "website_index": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",
@@ -179,19 +184,10 @@ def china_news_run():
         logger.exception(e)
         return
     for news_url in news_url_list:
-        worker = WorkerThreadParse(detail_list, china_news.get_news_detail, (news_url,))
-        worker.start()
-        threads.append(worker)
-    for _data in detail_list:
-        worker = WorkerThreadParse([], china_news.parse_news_detail(_data, ))
-        worker.start()
-        threads.append(worker)
+        detail_list.append(china_news.get_news_detail(news_url))
 
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
+    for _data in detail_list:
+        china_news.parse_news_detail(_data)
 
 
 if __name__ == '__main__':

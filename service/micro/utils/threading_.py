@@ -5,12 +5,11 @@
 import threading
 from threading import Thread, Semaphore
 from service import logger
-from service.db.utils.redis_utils import WEIBO_REPOST_QQ, WEIBO_COMMENT_QQ, WEIBO_USER_QQ
 
 __author__ = 'gaoyuan'
 
 THREAD_JOIN_TIMEOUT = 1
-MAX_THREADS_NUM = 5
+MAX_THREADS_NUM = 20
 threads_sem = Semaphore(MAX_THREADS_NUM)
 
 

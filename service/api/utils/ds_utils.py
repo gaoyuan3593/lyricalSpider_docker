@@ -19,6 +19,13 @@ def get_data_source_with_service(s):
     return k
 
 
+def get_news_source_with_service(s):
+    from service.server.db import db_session
+    from service.db.model.m_db import NewsSource
+    k = db_session.query(NewsSource).filter(NewsSource.website == s).first()
+    return k
+
+
 def add_data_source(data):
     from service.db.model.m_db import DataSource
     from service.server.db import db_session

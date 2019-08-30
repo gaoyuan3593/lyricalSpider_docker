@@ -25,5 +25,11 @@ proxy:
   host: b5.t.16yun.cn
   port: 6460
 
+kuaiproxy:
+  user: 71116455
+  password: vk8512345
+  host: http://kps.kdlapi.com/api/getkps
+  orderid: 916505396905443
+
 host: 127.0.0.1
 port: 8080

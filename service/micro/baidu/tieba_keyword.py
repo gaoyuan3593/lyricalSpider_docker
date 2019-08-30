@@ -43,34 +43,17 @@ class TiebaSpider(object):
         self.es = ElasticsearchClient()
         self.task_date = self.params.get("date")
 
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
+    def filter_keyword(self, id, _type):
         try:
-            result = self.es.dsl_search(self.es_index, _type, mapping)
-            if result.get("hits").get("hits"):
-                if _type == "user":
-                    self.es.update(self.es_index, _type, result.get("hits").get("hits")[0].get("_id"), data)
-                    logger.info("dic : {}, update success".format(_dic))
-                    return True
-                else:
-                    logger.info("dic : {} is existed".format(_dic))
-                    return True
+            result = self.es.get(self.es_index, _type, id)
+            if result.get("found"):
+                return True
             return False
         except Exception as e:
-            return False
+            logger.exception(e)
+            raise e
 
-    def save_one_data_to_es(self, data, dic):
+    def save_one_data_to_es(self, data, id=None):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -78,12 +61,13 @@ class TiebaSpider(object):
         """
         try:
             _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
+            if self.filter_keyword(id, _type):
+                logger.info("Data already exists id: {}".format(id))
                 return
-            self.es.insert(self.es_index, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
+            self.es.insert(self.es_index, _type, data, id)
+            logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
+            logger.exception(e)
             raise e
 
     def random_num(self):
@@ -115,6 +99,7 @@ class TiebaSpider(object):
 
         # 解析 发帖的内容
         threads = []
+        del url_list
         for resp_dic in page_data_list:
             worker = WorkerThread(tiezi_url_list, self.parse_tiezi_detail, (resp_dic,))
             worker.start()
@@ -127,6 +112,7 @@ class TiebaSpider(object):
 
         # 获取 贴子内的 回复内容
         threads = []
+        del page_data_list
         for tiezi_url_dic in tiezi_url_list:
             worker = WorkerThread(replay_url_list, self.get_tiezi_data_url, (tiezi_url_dic,))
             worker.start()
@@ -136,7 +122,7 @@ class TiebaSpider(object):
             if work.isAlive():
                 logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
                 threads.append(work)
-
+        del tiezi_url_list
         for repaly in replay_url_list:
             worker = WorkerThread([], self.get_next_data, (repaly,))
             worker.start()
@@ -146,6 +132,7 @@ class TiebaSpider(object):
             if work.isAlive():
                 logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
                 threads.append(work)
+        del replay_url_list
         return dict(
             status=200,
             index=self.es_index,
@@ -330,8 +317,7 @@ class TiebaSpider(object):
                     fid=fid,  # 作者id
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
-                dic = {"tid.keyword": tid}
-                self.save_one_data_to_es(resp_data, dic)
+                self.save_one_data_to_es(resp_data, tid)
                 if author_url:
                     if len(author_url) > 38:
                         self.get_author_detail(author_url, fid)
@@ -522,15 +508,14 @@ class TiebaSpider(object):
                 profile_image_url=profile_image_url,  # 头像url
                 type="user_type"
             )
-            dic = {"author_id.keyword": author_id}
-            self.save_one_data_to_es(data, dic)
+            self.save_one_data_to_es(data, author_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
 
     def parse_replay_detail(self, resp):
         """
-        解析作者详情
+        解析回复详情
         :return: list
         """
         if not resp:
@@ -562,9 +547,14 @@ class TiebaSpider(object):
                 author_info = data_info.get("author")
                 content_info = data_info.get("content")
                 replay_id = content_info.get("post_id")
+                date = content_info.get("date")
+                if date:
+                    replay_date = datetime.strptime(date, "%Y-%m-%d %H:%M")
+                else:
+                    continue
                 data = dict(
                     user=author_info.get("user_name"),  # 用户名
-                    date=content_info.get("date"),  # 评论时间
+                    date=replay_date,  # 评论时间
                     replay_text=replay_text,  # 评论内容
                     nick_name=author_info.get("user_nickname"),  # 昵称
                     level=author_info.get("level_id"),  # 在本贴吧的等级
@@ -582,8 +572,7 @@ class TiebaSpider(object):
                     img_url=img_url,  # 图片url
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
-                dic = {"replay_id": replay_id}
-                self.save_one_data_to_es(data, dic)
+                self.save_one_data_to_es(data, replay_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -591,11 +580,15 @@ class TiebaSpider(object):
     def parse_crawl_date(self, article_date, task_date):
         if not task_date:
             return
-        start_date = task_date
         if ":" in task_date:
             start_date, end_date = task_date.split(":")
-        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
-        if article_date.__ge__(begin_date):
-            return article_date
-        else:
-            return
+            _end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+            _article_date = datetime.strptime(article_date.strftime("%Y-%m-%d"), "%Y-%m-%d")
+            if _article_date.__ge__(begin_date):
+                if _article_date.__le__(_end_date):
+                    return article_date
+                else:
+                    return None
+            else:
+                return None

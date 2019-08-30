@@ -172,6 +172,7 @@ class BaiJiaHaoSpider(object):
                 time.sleep(15)
                 raise HttpInternalServerError
             else:
+                self.requester.use_proxy(tag="same")
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(5)
@@ -236,10 +237,10 @@ class BaiJiaHaoSpider(object):
                     logger.info("acticle is exits")
                     return
                 else:
+                    self.requester.use_proxy(tag="same")
                     raise TimedOutError
             except Exception as e:
                 time.sleep(5)
-                #self.requester.use_proxy()
                 raise HttpInternalServerError
         return data_list
 
@@ -262,7 +263,10 @@ class BaiJiaHaoSpider(object):
             avatar_img = resp_obj.find("div", attrs={"class": "author-icon"}).find("img").attrs.get("src")  # 头像
             img = resp_obj.find_all("img", attrs={"class": "large"})  # 是否有图片
             user_id = re.findall(r"appId:(\d+)?", resp.get("resp"))[0]
-            introduction = resp_obj.find("div", attrs={"class": "author-desc"}).text.split("简介:")[1]  #作者简介
+            try:
+                introduction = resp_obj.find("div", attrs={"class": "author-desc"}).text.split("简介:")[1]  # 作者简介
+            except:
+                introduction = ""
             if img:
                 pics = 1
                 img_url = [soup.attrs.get("src") for soup in img]
@@ -285,7 +289,7 @@ class BaiJiaHaoSpider(object):
             dic = {"article_id.keyword": article_id}
             self.save_one_data_to_es(data, dic)
         except Exception as e:
-            logger.info(" article is delete article_id: ")
+            logger.info(" article is article_id: ")
             logger.exception(e)
 
     def format_date(self, _date, _time):
@@ -316,7 +320,7 @@ if __name__ == '__main__':
         except Exception as e:
             continue
 
-    #acticle_url_list=[{'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1635741021382008318&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635654667073983144&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635635353903371066&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635590611759524641&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635557212014367427&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1627859111282802069&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1627688257550763722&wfr=spider&for=pc', 'http://baijiahao.baidu.com/s?id=1627068587498828788&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1617914796161441161&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1614231717068550033&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': []}, {'keyword': '医闹黑名单', 'acticle_url_list': []}]
+    # acticle_url_list=[{'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1635741021382008318&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635654667073983144&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635635353903371066&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635590611759524641&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635557212014367427&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1627859111282802069&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1627688257550763722&wfr=spider&for=pc', 'http://baijiahao.baidu.com/s?id=1627068587498828788&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1617914796161441161&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1614231717068550033&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': []}, {'keyword': '医闹黑名单', 'acticle_url_list': []}]
     for url_dic in acticle_url_list:
         try:
             acticle_data = bjh.get_acticle_detail(url_dic)

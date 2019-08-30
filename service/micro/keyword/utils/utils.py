@@ -5,6 +5,8 @@
 import pickle
 import time
 import datetime
+
+import apscheduler
 import pytz
 from service.db.utils.mongo_utils import connection
 from service.micro.utils.apscheduler_ import TIME, TZ
@@ -13,7 +15,7 @@ from service import logger
 EPOCH = 1970
 _EPOCH_ORD = datetime.date(EPOCH, 1, 1).toordinal()
 
-# tz = pytz.timezone('Asia/Shanghai')
+tz = pytz.timezone('Asia/Shanghai')
 
 
 def timegm(tuple):
@@ -35,9 +37,11 @@ def pause_job(_id):
     _c = connection.apscheduler.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
-        _parm["next_run_time"] = None
-        job_state = pickle.loads(_parm["job_state"])
-        job_state["next_run_time"] = None
+        sh_time = datetime.datetime.now(tz) + datetime.timedelta(hours=24)
+        sh_date = timegm(sh_time.utctimetuple()) + sh_time.microsecond / 1000000
+        job_state = pickle.loads(_parm['job_state'])
+        job_state["next_run_time"] = sh_time
+        _parm.update(next_run_time=sh_date)
         _parm.update(job_state=pickle.dumps(job_state))
         _c.save(_parm)
         logger.info("task pause success task_id : {}  ...".format(_id))
@@ -52,7 +56,7 @@ def resume_job(_id):
     _c = connection.apscheduler.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
-        sh_time = datetime.datetime.now(TZ) + datetime.timedelta(minutes=TIME)
+        sh_time = datetime.datetime.now(tz) + datetime.timedelta(minutes=5)
         sh_date = timegm(sh_time.utctimetuple()) + sh_time.microsecond / 1000000
         job_state = pickle.loads(_parm['job_state'])
         job_state["next_run_time"] = sh_time
@@ -76,5 +80,9 @@ def remove_job(_id):
 
 
 if __name__ == '__main__':
-    _id = "7446eb140b1a2deaeb5f0020d30fdb2b"
+    _id = "ae37049facb11e26c3b8b48be8981f78"
+    #pause_job(_id)
     resume_job(_id)
+    from apscheduler.schedulers.base import BaseScheduler
+    aa = BaseScheduler()
+    aa.pause_job(job_id=_id, jobstore="mongo")

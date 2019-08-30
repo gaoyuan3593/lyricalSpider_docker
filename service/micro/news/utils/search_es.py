@@ -11,33 +11,19 @@ class SaveDataToEs(object):
         return ElasticsearchClient()
 
     @classmethod
-    def filter_keyword(cls, es, _type, _dic):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [
-                                {"term": _dic}
-                            ],
-                        "must_not": [],
-                        "should": []}},
-            "from": 0,
-            "size": 10,
-            "sort": [],
-            "aggs": {}
-        }
+    def filter_keyword(cls, es, index, _type, id):
+
         try:
-            result = es.dsl_search(ALL_NEWS_DETAILS, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
+            result = es.get(index, _type, id)
+            if result.get("found"):
                 return True
             return False
         except Exception as e:
-            return False
+            logger.exception(e)
+            raise e
 
     @classmethod
-    def save_one_data_to_es(cls, data, dic):
+    def save_one_data_to_es(cls, index, data, id):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -46,10 +32,10 @@ class SaveDataToEs(object):
         try:
             es = cls.create_client()
             _type = data.get("type")
-            if cls.filter_keyword(es, _type, dic):
-                logger.info("is existed  dic: {}".format(dic))
+            if cls.filter_keyword(es, index, _type, id):
+                logger.info("is existed  id: {}".format(id))
                 return
-            es.insert(ALL_NEWS_DETAILS, _type, data)
+            es.insert(index, _type, data, id)
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e

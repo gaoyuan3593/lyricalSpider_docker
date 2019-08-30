@@ -28,9 +28,9 @@ if __name__ == '__main__':
     import pytz
 
     tz = pytz.timezone('America/New_York')
-    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '5000'})
+    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '50'})
 
     # 搜狗微信热搜定时任务
-    sched.add_job(run_wechat_hot_tasks, 'interval', minutes=30, next_run_time=datetime.now(tz) + timedelta(seconds=5))
+    sched.add_job(run_wechat_hot_tasks, 'interval', hours=6, next_run_time=datetime.now(tz) + timedelta(seconds=5))
 
     sched.start()

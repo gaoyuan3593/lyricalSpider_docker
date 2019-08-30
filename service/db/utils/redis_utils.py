@@ -3,37 +3,16 @@
 
 from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
+from service.core.config.redis_ import weibo_redis_cli
 import random
 import redis
 
 conf = get_by_name_yaml('redis')
-# 页码
-WEIBO_PAGE_REDIS_URL = 'redis://:%s@%s:%s/1' % (conf['password'], conf['host'], conf['port'])
-# 评论
-WEIBO_CONTENT_REDIS_URL = 'redis://:%s@%s:%s/2' % (conf['password'], conf['host'], conf['port'])
-# 转发
-WEIBO_FORWARD_REDIS_URL = 'redis://:%s@%s:%s/3' % (conf['password'], conf['host'], conf['port'])
-
-
-def redis_cli(url):
-    import re
-    m = re.match('^redis://:(.*)@(.*):(.*)/(.*)', url)
-    password, host, port, db = m.groups()
-    import redis
-    return redis.Redis(
-        host=host,
-        port=port,
-        db=db,
-        password=password
-    )
-
-
-dict_redis_cli = redis_cli(WEIBO_PAGE_REDIS_URL)
 
 
 class RedisQueue(object):
-    def __init__(self, name, namespace='queue', **redis_kwargs):
-        self.__db = redis_cli(WEIBO_PAGE_REDIS_URL)
+    def __init__(self, name, namespace='queue', redis_cli=weibo_redis_cli):
+        self.__db = redis_cli
         self.key = '{}:{}'.format(namespace, name)
 
     def qsize(self):
@@ -134,7 +113,7 @@ class RedisClient(object):
 def get_redis_key(k):
     logger.info("get_redid_key key:{}".format(k))
     try:
-        v = dict_redis_cli.get(k)
+        v = weibo_redis_cli.get(k)
     except Exception as e:
         logger.exception(e)
     logger.info("get_redid_key values:{}".format(v))
@@ -152,9 +131,6 @@ WEIBO_COMMENT_QQ = RedisQueue('weibo_comment_qq', namespace='weibo_comment_qq')
 # 微博转发qq
 WEIBO_REPOST_QQ = RedisQueue('weibo_repost_qq', namespace='weibo_repost_qq')
 
-# 微博用户qq
-WEIBO_USER_QQ = RedisQueue('weibo_user_qq', namespace='weibo_user_qq')
-
 if __name__ == '__main__':
     # conn = RedisClient('accounts', 'weibo')
     # conn_cookie = RedisClient('cookies', 'weibo')
@@ -163,6 +139,14 @@ if __name__ == '__main__':
     # result2 = conn_cookie.get(user)
     # print(result)
 
-    #get_redis_key("page_id")
-    print(WEIBO_REPOST_QQ.qsize())
-    print(WEIBO_COMMENT_QQ.qsize())
+    # get_redis_key("page_id")
+    # print(WEIBO_REPOST_QQ.qsize())
+    # print(WEIBO_COMMENT_QQ.qsize())
+    import json
+
+    task_qq = RedisQueue('task_id_index_qq', namespace="8a82171fd72403a1de75b5db04503c94")
+    case_info = json.dumps(["123213", "sadfasdfasdfaf", "asdfasdfsdafasdf434324"])
+    task_qq.put(case_info)
+
+    data = task_qq.get_nowait()
+    print(data)

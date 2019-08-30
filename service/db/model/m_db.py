@@ -43,3 +43,35 @@ class DataSource(Base):
             create_time=self.create_time,
             update_time=self.update_time
         )
+
+
+class NewsSource(Base):
+    __tablename__ = 'news_source'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=False)
+    news_name = Column(String(50), nullable=False)
+    handler = Column(String(50), nullable=True)
+    service = Column(String(50), nullable=True)
+    website = Column(String(50), nullable=True)
+
+    create_time = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    update_time = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"), onupdate=text("CURRENT_TIMESTAMP"))
+
+    __table_args__ = (Index('ix_news_source', 'news_name', 'service', 'handler', 'website'),)
+
+    def short_json(self):
+        return dict(
+            id=self.id,
+            name=self.news_name
+        )
+
+    def json(self):
+        return dict(
+            id=self.id,
+            service=self.service,
+            handler=self.handler,
+            news_name=self.news_name,
+            website=self.website,
+            create_time=self.create_time,
+            update_time=self.update_time
+        )

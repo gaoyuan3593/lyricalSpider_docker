@@ -27,34 +27,17 @@ class TiebaSpider(object):
         self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
 
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
+    def filter_keyword(self, id, _type):
         try:
-            result = self.es.dsl_search(BAIDUTIEBA, _type, mapping)
-            if result.get("hits").get("hits"):
-                if _type == "user":
-                    self.es.update(BAIDUTIEBA, _type, result.get("hits").get("hits")[0].get("_id"), data)
-                    logger.info("dic : {}, update success".format(_dic))
-                    return True
-                else:
-                    logger.info("dic : {} is existed".format(_dic))
-                    return True
+            result = self.es.get(BAIDUTIEBA, _type, id)
+            if result.get("found"):
+                return True
             return False
         except Exception as e:
-            return False
+            logger.exception(e)
+            raise e
 
-    def save_one_data_to_es(self, data, dic):
+    def save_one_data_to_es(self, data, id=None):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -62,17 +45,19 @@ class TiebaSpider(object):
         """
         try:
             _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
+            if self.filter_keyword(id, _type):
+                logger.info("Data already exists id: {}".format(id))
                 return
-            self.es.insert(BAIDUTIEBA, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
+            self.es.insert(BAIDUTIEBA, _type, data, id)
+            logger.info("save to es success [ index : {}, data={}]！".format(BAIDUTIEBA, data))
         except Exception as e:
+            logger.exception(e)
             raise e
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
+    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_weibo_hot_seach(self):
         logger.info('Processing get weibo hot search list!')
         url = 'https://s.weibo.com/top/summary?Refer=top_hot'
@@ -92,12 +77,12 @@ class TiebaSpider(object):
             hot_list = data_list[0].find_all("tr")[1:]
             for raw in hot_list:
                 keyword = raw.contents[3].contents[1].text
-                # keyword = "郑爽男朋友"
                 url = 'http://tieba.baidu.com/f/search/res?isnew=1&ie=utf-8&kw=&qw={}&rn=10&un=&only_thread=1&sm=1'.format(
                     parse.quote(keyword))
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -127,7 +112,6 @@ class TiebaSpider(object):
                 url_list = self.parse_tieba_page_url(resp, keyword)
                 return url_list
         except Exception as e:
-            self.requester.use_proxy()
             raise e
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -158,8 +142,8 @@ class TiebaSpider(object):
             else:
                 raise InvalidResponseError
         except Exception as e:
-            time.sleep(0.2)
-            self.requester.use_proxy()
+            time.sleep(1)
+            self.requester.use_proxy(tag="same")
             raise e
 
     def parse_tieba_page_url(self, resp, keyword):
@@ -239,8 +223,7 @@ class TiebaSpider(object):
                     tid=tid,  # 贴子id
                     fid=fid  # 作者id
                 )
-                dic = {"tid.keyword": tid}
-                self.save_one_data_to_es(resp_data, dic)
+                self.save_one_data_to_es(resp_data, tid)
                 if author_url:
                     if len(author_url) > 38:
                         self.get_author_detail(author_url, fid)
@@ -289,7 +272,6 @@ class TiebaSpider(object):
 
         except Exception as e:
             time.sleep(self.random_num())
-            # self.requester.use_proxy()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -337,7 +319,6 @@ class TiebaSpider(object):
 
         except Exception as e:
             time.sleep(self.random_num())
-            # self.requester.use_proxy()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -371,11 +352,11 @@ class TiebaSpider(object):
                             .format(url))
                 return None
             else:
+                self.requester.use_proxy(tag="same")
                 raise InvalidResponseError
 
         except Exception as e:
             time.sleep(self.random_num())
-            # self.requester.use_proxy()
             raise InvalidResponseError
 
     def parse_author_detail(self, resp, author_id):
@@ -431,8 +412,7 @@ class TiebaSpider(object):
                 profile_image_url=profile_image_url,  # 头像url
                 type="user"
             )
-            dic = {"author_id.keyword": author_id}
-            self.save_one_data_to_es(data, dic)
+            self.save_one_data_to_es(data, author_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -491,8 +471,7 @@ class TiebaSpider(object):
                     img_url=img_url  # 图片url
 
                 )
-                dic = {"replay_id": replay_id}
-                self.save_one_data_to_es(data, dic)
+                self.save_one_data_to_es(data, replay_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -544,16 +523,16 @@ if __name__ == '__main__':
     # 解析 发帖的内容
     threads = []
     for resp_dic in page_data_list:
-        # dic = tieba.parse_tiezi_detail(resp_dic)
-        # tiezi_url_list.extend(dic)
-        worker = WorkerThreadParse(tiezi_url_list, tieba.parse_tiezi_detail, (resp_dic,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
+        dic = tieba.parse_tiezi_detail(resp_dic)
+        tiezi_url_list.extend(dic)
+    #     worker = WorkerThreadParse(tiezi_url_list, tieba.parse_tiezi_detail, (resp_dic,))
+    #     worker.start()
+    #     threads.append(worker)
+    # for work in threads:
+    #     work.join(1)
+    #     if work.isAlive():
+    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+    #         threads.append(work)
 
     # 获取 贴子内的 回复内容
     threads = []

@@ -10,10 +10,10 @@ import logbook
 level = 'debug'
 error_level = 'warning'
 filename = '/home/gaoyuan/log/p.log'
-error_filename = '/home/pandora/log/p_error.log'
+error_filename = '/home/gaoyuan/log/p_error.log'
 format_string = '[{record.time:%Y-%m-%d %H:%M:%S.%f%z}][{record.level_name}]' \
                 '[pid:{record.process}][{record.filename}:{record.lineno}]' \
-                '[seq_no:{record.extra[seq_no]}]:{record.message}'
+                ':{record.message}'
 if ENABLE_DEBUG_MODE:
     handler = logbook.StreamHandler(sys.stdout, format_string=format_string, level=level.upper(), bubble=True)
     handler.push_application()

@@ -26,7 +26,7 @@ class SouGouHotSpider(object):
     def __init__(self):
         self.ua = ua()
         self.cookies = self.get_cookie()
-        self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=15)
+        self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=20)
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
@@ -35,16 +35,16 @@ class SouGouHotSpider(object):
 
     def next_cookie(self):
         cookie = dict_to_cookie_jar(self.get_cookie())
-        self.requester = Requester(cookie=cookie, timeout=15)
+        self.requester = Requester(cookie=cookie, timeout=20)
 
     def update_cookie(self, snuid):
         cookie_dic = self.requester.cookie()
         cookie_dic.update(SNUID=snuid)
         cookie_dic = json.dumps(cookie_dic)
-        self.requester = Requester(cookie=dict_to_cookie_jar(cookie_dic), timeout=15)
+        self.requester = Requester(cookie=dict_to_cookie_jar(cookie_dic), timeout=20)
 
     def random_num(self):
-        return random.uniform(1, 10)
+        return random.uniform(1, 3)
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -62,18 +62,13 @@ class SouGouHotSpider(object):
         try:
             result = self.es.dsl_search(SOUGOU_KEYWORD_DETAIL, _type, mapping)
             if result.get("hits").get("hits"):
-                if _type == "detail":
-                    self.es.update(SOUGOU_KEYWORD_DETAIL, _type, result.get("hits").get("hits")[0].get("_id"), data)
-                    logger.info("dic : {}, update success".format(_dic))
-                    return True
-                else:
-                    logger.info("dic : {} is existed".format(_dic))
-                    return True
+                logger.info("dic : {}, update success".format(_dic))
+                return True
             return False
         except Exception as e:
             return False
 
-    def save_one_data_to_es(self, data, dic):
+    def save_one_data_to_es(self, id, data, dic):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -84,7 +79,7 @@ class SouGouHotSpider(object):
             if self.filter_keyword(_type, dic, data):
                 logger.info("is existed  dic: {}".format(dic))
                 return
-            self.es.insert(SOUGOU_KEYWORD_DETAIL, _type, data)
+            self.es.insert(SOUGOU_KEYWORD_DETAIL, _type, data, id=id)
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e
@@ -111,11 +106,40 @@ class SouGouHotSpider(object):
         except Exception as e:
             return False
 
+    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
+    def get_weibo_hot_seach(self):
+        logger.info('Processing get weibo hot search list!')
+        url = 'https://s.weibo.com/top/summary?Refer=top_hot'
+        headers = {
+            'User-Agent': ua(),
+            'Connection': 'keep-alive',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Host': 's.weibo.com'
+        }
+        keyword_url_list = []
+        try:
+            response = self.requester.get(url=url, header_dict=headers)
+            data_obj = BeautifulSoup(response.text, "lxml")
+            data_list = data_obj.find_all("div", attrs={"id": "pl_top_realtimehot"})
+            hot_list = data_list[0].find_all("tr")[1:]
+            for raw in hot_list:
+                keyword = raw.contents[3].contents[1].text
+                url = 'http://weixin.sogou.com/weixin?type=2&ie=utf8&s_from=hotnews&query={}'.format(
+                    quote(keyword))
+                keyword_url_list.append(dict(url=url, keyword=keyword))
+            return keyword_url_list
+        except Exception as e:
+            self.requester.use_proxy(tag="same")
+            raise HttpInternalServerError
+
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_sougou_hot_seach(self):
         logger.info('Processing get weibo hot search list!')
         url = 'https://weixin.sogou.com/'
         headers = {
-            'User-Agent': ua(),
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
             'Connection': 'keep-alive',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -130,14 +154,11 @@ class SouGouHotSpider(object):
             data_list = data_obj.find("ol", attrs={"id": "topwords"}).find_all("li")
             for raw in data_list:
                 keyword = raw.find("a").attrs.get("title")
-                _dic = {"b_keyword.keyword": keyword}
-                _type = "detail"
-                if self.filter_keyword_to_sougou(_type, _dic):
-                    continue
                 url = raw.find("a").attrs.get("href")
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -163,23 +184,20 @@ class SouGouHotSpider(object):
                     message="抱歉，未找到“{}”相关结果。".format(keyword)
                 )
             if '以下内容来自微信公众平台' in response.text:
+                logger.info("requests success url : {}".format(url))
                 url_list = self.parse_weixin_page_url(response.text, keyword)
                 return url_list
             if "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
+                self.requester.use_proxy(tag="same")
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
-                if is_ok:
-                    raise RequestFailureError
+                raise RequestFailureError
             else:
+                self.requester.use_proxy(tag="same")
                 logger.error('get weibo hot search list failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            if e.code == 500006:
-                raise e
-            time.sleep(self.random_num())
-            # self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
+            logger.error(" get data filed")
             raise RequestFailureError
 
     @retry(max_retries=3, exceptions=(CaptchaVerifiedError,), time_to_sleep=1)
@@ -222,6 +240,7 @@ class SouGouHotSpider(object):
         response = self.requester.post(url, header_dict=headers, data_dict=data)
         response.encoding = "utf-8"
         data = to_json(response.text)
+        logger.info("resp : {}".format(data))
         result_code = data.get('code', None)
         if result_code == 0:
             snuid = data.get("id")
@@ -230,15 +249,15 @@ class SouGouHotSpider(object):
         else:
             logger.error('verify captcha code failed. ')
             captcha_code = self.get_captcha_code(keyword)
-            self.verify_captcha_code(captcha_code, keyword)
+            return self.verify_captcha_code(captcha_code, keyword)
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
-        url = 'http://212.64.127.151:6002/ocr_captcha'
+        url = 'https://nmd-ai.juxinli.com/ocr_captcha'
         headers = {'Content-Type': 'application/json'}
         data = {
             "image_base64": base_str,
-            "app_id": "71116455",
+            "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
             "ocr_code": "0000"
         }
         req = self.requester.post(url=url, data_dict=data, submission_type="json", header_dict=headers).json()
@@ -254,7 +273,7 @@ class SouGouHotSpider(object):
         获取搜狗微信的每页html
         :return: dict
         """
-        logger.info('Processing get weibo key word ！')
+        logger.info('Processing get wechat key word ！')
         try:
             if not data:
                 return {}
@@ -267,7 +286,6 @@ class SouGouHotSpider(object):
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'zh-CN,zh;q=0.9',
                 'Host': 'weixin.sogou.com',
-                "Upgrade-Insecure-Requests": "1",
             }
             time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
@@ -276,25 +294,24 @@ class SouGouHotSpider(object):
                 return
             elif "当前只显示100条结果，请您：" in response.text:
                 logger.error("需要扫码登录")
+                self.next_cookie()
                 raise HttpInternalServerError
             elif keyword in response.text and '<ul class="searchnav" name="scroll-nav">' in response.text:
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
+                self.requester.use_proxy(tag="same")
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
-                if is_ok:
-                    raise RequestFailureError
+                raise RequestFailureError
             else:
+                random.choice([
+                    self.requester.use_proxy(tag="same"),
+                ])
                 logger.error('get weixin page data failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            if e.code == 500006:
-                raise e
-            time.sleep(self.random_num())
-            #self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
@@ -326,16 +343,26 @@ class SouGouHotSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                time.sleep(18000)
+                self.requester.use_proxy(tag="same")
                 raise HttpInternalServerError
+            elif "访问过于频繁，请用微信扫描二维码进行访问" in response.text:
+                self.next_cookie()
+                random.choice([
+                    self.requester.use_proxy(tag="same"),
+                    self.requester.use_proxy()
+                ])
+                raise HttpInternalServerError
+            elif "观看" in response.text or "该内容已被发布者删除" in response.text:
+                return
             else:
                 logger.error('get weibo detail failed !')
+                random.choice([
+                    self.requester.use_proxy(tag="same"),
+                    self.requester.use_proxy()
+                ])
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(self.random_num())
-            self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
             raise HttpInternalServerError
 
     def parse_weixin_page_url(self, resp, keyword):
@@ -356,7 +383,6 @@ class SouGouHotSpider(object):
                     _str = _str.replace(",", "")
                 page_num = int(_str) // 10 + 1
                 page_num = 101 if page_num > 100 else page_num
-                page_num = 11
                 for i in range(1, page_num):
                     url = "https://weixin.sogou.com/weixin?query={}&s_from=hotnews&type=2&page={}&ie=utf8".format(
                         keyword, i)
@@ -384,6 +410,9 @@ class SouGouHotSpider(object):
             if page_url_obj:
                 for tag_soup in page_url_obj:
                     article_id = tag_soup.attrs.get("d")
+                    dic = {"article_id": article_id}
+                    if self.filter_keyword("detail_type", dic):
+                        continue
                     author = tag_soup.find("div", attrs={"class": "s-p"}).find("a").text.strip()  # 作者
                     time_chuo = tag_soup.find("span", attrs={"class": "s2"}).text
                     article_date = self.parse_time_chuo(time_chuo)  # 时间
@@ -447,7 +476,7 @@ class SouGouHotSpider(object):
                 article_url=resp.get("url"),  # 文章链接
             )
             dic = {"article_id.keyword": article_id}
-            self.save_one_data_to_es(data, dic)
+            self.save_one_data_to_es(article_id, data, dic)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -471,14 +500,15 @@ if __name__ == "__main__":
     threads = []
     data_list, weixin_article_url_list = [], []
     article_detail_list, url_list = [], []
-
+    weibo_key_list = weichat.get_weibo_hot_seach()
     keyword_list = weichat.get_sougou_hot_seach()
+    keyword_list.extend(weibo_key_list)
     for keyword_data in keyword_list:
         try:
             url_list.extend(weichat.get_weixin_page_url(keyword_data))
         except:
             continue
-    for url_data in url_list[:100]:
+    for url_data in url_list:
         try:
             data = weichat.get_weixin_page_data(url_data)
             if data:
@@ -488,8 +518,8 @@ if __name__ == "__main__":
 
     if data_list:
         for data in data_list:
-            #解析所有页的文章url
-            #weixin_article_url_list.extend(weichat.parse_weixin_article_url(data))
+            # 解析所有页的文章url
+            # weixin_article_url_list.extend(weichat.parse_weixin_article_url(data))
             worker = WorkerThread(weixin_article_url_list, weichat.parse_weixin_article_url, (data,))
             worker.start()
             threads.append(worker)
@@ -512,16 +542,3 @@ if __name__ == "__main__":
     #     if work.isAlive():
     #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
     #         threads.append(work)
-
-    threads = []
-    for article in article_detail_list:
-       weichat.parse_weixin_article_detail(article)
-    #     worker = WorkerThread([], weichat.parse_weixin_article_detail, (article,))
-    #     worker.start()
-    #     threads.append(worker)
-    # for work in threads:
-    #     work.join(1)
-    #     if work.isAlive():
-    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-    #         threads.append(work)
-

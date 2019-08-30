@@ -13,18 +13,10 @@ def weibo_hot_run():
     data_list, page_data_url_list = [], []
     html_list, wb_data_list = [], []
 
-    resp_list, url_list = wb.get_hot_search_list()
+    url_list = wb.get_hot_search_list()
     for url_data in url_list:
         # 获取每条热搜页的html
-        worker = WorkerThread(data_list, wb.get_weibo_page_data, (url_data,))
-        worker.start()
-        threads.append(worker)
-    for work in threads:
-        work.join(1)
-        if work.isAlive():
-            logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-            threads.append(work)
-    threads = []
+        data_list.append(wb.get_weibo_page_data(url_data, ))
     if data_list:
         for data in data_list:
             # 解析每个热搜的所有页的url
@@ -67,16 +59,16 @@ def weibo_hot_run():
             continue
         keyword = wb_data.get("keyword")
         for data in wb_data.get("data"):
-            wb.parse_weibo_detail(data, keyword)
-        #     worker = WorkerThread([], wb.parse_weibo_detail, (data, keyword))
-        #     worker.start()
-        #     threads.append(worker)
-        # for work in threads:
-        #     work.join(1)
-        #     if work.isAlive():
-        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-        #         threads.append(work)
-
+            worker = WorkerThread([], wb.parse_weibo_detail, (data, keyword))
+            worker.start()
+            threads.append(worker)
+        for work in threads:
+            work.join(1)
+            if work.isAlive():
+                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+                threads.append(work)
+    import gc
+    gc.collect()
 
 
 if __name__ == '__main__':

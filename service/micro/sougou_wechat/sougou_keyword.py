@@ -19,6 +19,7 @@ from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_d
 from service.micro.utils.math_utils import wechat_date_next, to_json
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
 from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
+from service.micro.utils.threading_ import WorkerThread
 
 _index_mapping = {
     "detail_type":
@@ -35,9 +36,8 @@ class SouGouKeywordSpider(object):
         self.params = params
         self.ua = ua()
         self.cookies = self.get_cookie()
-        self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=15)
+        self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=20)
         self.es_index = self.params.get("wechat_index")
-        self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
@@ -55,31 +55,19 @@ class SouGouKeywordSpider(object):
         self.requester = Requester(cookie=dict_to_cookie_jar(cookie_dic), timeout=15)
 
     def random_num(self):
-        return random.uniform(1, 6)
+        return random.uniform(1, 3)
 
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
+    def filter_keyword(self, id, _type):
         try:
-            result = self.es.dsl_search(self.es_index, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
+            result = self.es.get(self.es_index, _type, id)
+            if result.get("found"):
                 return True
             return False
         except Exception as e:
-            return False
+            logger.exception(e)
+            raise e
 
-    def save_one_data_to_es(self, data, dic):
+    def save_one_data_to_es(self, data, id=None):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -87,45 +75,25 @@ class SouGouKeywordSpider(object):
         """
         try:
             _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
+            if self.filter_keyword(id, _type):
+                logger.info("Data already exists id: {}".format(id))
                 return
-            self.es.insert(self.es_index, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
+            self.es.insert(self.es_index, _type, data, id)
+            logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
+            logger.exception(e)
             raise e
-
-    def filter_keyword_to_sougou(self, _type, _dic):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
-        try:
-            result = self.es.dsl_search(self.es_index, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
-                return True
-            return False
-        except Exception as e:
-            return False
 
     def query(self):
         threads = []
-        data_list, article_url_list, article_detail_list = [], [], []
-        url_list = []
+        data_list, article_url_list, url_list = [], [], []
 
         begin_url_list = wechat_date_next(self.params)
         for keyword_dic in begin_url_list:
-            url_list.extend(self.get_weixin_page_url(keyword_dic))
-
+            try:
+                url_list.extend(self.get_weixin_page_url(keyword_dic))
+            except Exception as e:
+                continue
         if not url_list:
             return dict(
                 status=1,
@@ -142,6 +110,7 @@ class SouGouKeywordSpider(object):
         if data_list:
             for data in data_list:
                 # 解析所有页的文章url
+                #article_url_list.extend(self.parse_weixin_article_url(data))
                 worker = WorkerThread(article_url_list, self.parse_weixin_article_url, (data,))
                 worker.start()
                 threads.append(worker)
@@ -153,7 +122,7 @@ class SouGouKeywordSpider(object):
         self.es.create_index(self.es_index, _index_mapping)
         for article_data in article_url_list:
             try:
-                article_detail_list.append(self.get_weixin_article_details(article_data))
+                self.get_weixin_article_details(article_data)
             except Exception as e:
                 continue
         return dict(
@@ -162,41 +131,11 @@ class SouGouKeywordSpider(object):
             message="搜狗微信获取成功！"
         )
 
-    def get_weibo_hot_seach(self):
-        logger.info('Processing get weibo hot search list!')
-        url = 'https://s.weibo.com/top/summary?Refer=top_hot'
-        headers = {
-            'User-Agent': ua(),
-            'Connection': 'keep-alive',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
-            'Host': 's.weibo.com'
-        }
-        keyword_url_list = []
-        try:
-            response = self.requester.get(url=url, header_dict=headers)
-            data_obj = BeautifulSoup(response.text, "lxml")
-            data_list = data_obj.find_all("div", attrs={"id": "pl_top_realtimehot"})
-            hot_list = data_list[0].find_all("tr")[1:]
-            for raw in hot_list:
-                keyword = raw.contents[3].contents[1].text
-                _dic = {"b_keyword.keyword": keyword}
-                _type = "detail"
-                if self.filter_keyword_to_sougou(_type, _dic):
-                    continue
-                url = 'https://weixin.sogou.com/weixin?type=2&s_from=input&query={}&ie=utf8&_sug_=n&_sug_type_='.format(
-                    keyword)
-                keyword_url_list.append(dict(url=url, keyword=keyword))
-            return keyword_url_list
-        except Exception as e:
-            raise HttpInternalServerError
-
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_weixin_page_url(self, data):
         url = data.get("url")
         keyword = data.get("keyword")
-        logger.info('Processing get get weixin page url!')
+        logger.info('Processing get get weixin page url keyword : {}!'.format(keyword))
         headers = {
             'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
             'Connection': 'keep-alive',
@@ -216,23 +155,20 @@ class SouGouKeywordSpider(object):
                     message="抱歉，未找到“{}”相关结果。".format(keyword)
                 )
             if '以下内容来自微信公众平台' in response.text:
-                url_list = self.parse_weixin_page_url(response.text, keyword)
+                url_list = self.parse_weixin_page_url(response.text, keyword, url)
                 return url_list
             if "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
-                if is_ok:
-                    raise RequestFailureError
+                raise RequestFailureError
             else:
                 logger.error('get weibo hot search list failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            if e.code == 500006:
-                raise e
             time.sleep(self.random_num())
-            # self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
+            random.choice([self.requester.use_proxy(tag="same"),
+                           self.requester.use_proxy()
+                           ])
             raise RequestFailureError
 
     @retry(max_retries=3, exceptions=(CaptchaVerifiedError,), time_to_sleep=1)
@@ -287,11 +223,18 @@ class SouGouKeywordSpider(object):
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
-        url = 'http://212.64.127.151:6002/ocr_captcha'
+        # url = 'http://212.64.127.151:6002/ocr_captcha'
+        # headers = {'Content-Type': 'application/json'}
+        # data = {
+        #     "image_base64": base_str,
+        #     "app_id": "71116455",
+        #     "ocr_code": "0000"
+        # }
+        url = 'https://nmd-ai.juxinli.com/ocr_captcha'
         headers = {'Content-Type': 'application/json'}
         data = {
             "image_base64": base_str,
-            "app_id": "71116455",
+            "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
             "ocr_code": "0000"
         }
         try:
@@ -310,12 +253,20 @@ class SouGouKeywordSpider(object):
         获取搜狗微信的每页html
         :return: dict
         """
-        logger.info('Processing get weibo key word ！')
+        logger.info('Processing get wechat key word ！data: {}'.format(data))
         try:
             if not data:
                 return {}
             url = data.get("url")
             keyword = data.get("keyword")
+            try:
+                page = int(url.split("page=")[1])
+                if page == 1:
+                    pass
+                else:
+                    page -= 1
+            except:
+                page = 1
             headers = {
                 'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
                 'Connection': 'keep-alive',
@@ -324,34 +275,32 @@ class SouGouKeywordSpider(object):
                 'Accept-Language': 'zh-CN,zh;q=0.9',
                 'Host': 'weixin.sogou.com',
                 "Upgrade-Insecure-Requests": "1",
+                "Referer": "https://weixin.sogou.com/weixin?usip=&query={}&ft=2019-07-31&tsn=5&et=2019-07-31&interation=&type=2&wxid=&page={}&ie=utf8".format(quote(keyword), page)
             }
-            # time.sleep(self.random_num())
+            time.sleep(self.random_num())
             response = self.requester.get(url=url, header_dict=headers)
             response.encoding = "utf-8"
             if "没有找到相关的微信公众号文章" in response.text:
                 return
             elif "当前只显示100条结果，请您：" in response.text:
                 logger.error("需要扫码登录")
+                self.next_cookie()
                 raise HttpInternalServerError
             elif keyword in response.text and '<ul class="searchnav" name="scroll-nav">' in response.text:
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
+                random.choice([self.requester.use_proxy(tag="same"),
+                               self.requester.use_proxy()
+                               ])
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
-                if is_ok:
-                    raise RequestFailureError
+                raise RequestFailureError
             else:
-                logger.error('get weixin page data failed !')
+                logger.error('get weibo hot search list failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            if e.code == 500006:
-                raise e
-            time.sleep(self.random_num())
-            # self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
-            raise HttpInternalServerError
+            raise RequestFailureError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def get_weixin_article_details(self, data):
@@ -382,19 +331,23 @@ class SouGouKeywordSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                time.sleep(18000)
+                random.choice([self.requester.use_proxy(tag="same"),
+                               self.requester.use_proxy()
+                               ])
                 raise HttpInternalServerError
+            elif "观看" in response.text:
+                return
             else:
                 logger.error('get weibo detail failed !')
+                random.choice([self.requester.use_proxy(tag="same"),
+                               self.requester.use_proxy()
+                               ])
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(self.random_num())
-            self.requester.use_proxy()
-            self.requester.clear_cookie()
-            self.next_cookie()
             raise HttpInternalServerError
 
-    def parse_weixin_page_url(self, resp, keyword):
+    def parse_weixin_page_url(self, resp, keyword, url):
         """
         解析所有页的url
         :return: list
@@ -412,17 +365,15 @@ class SouGouKeywordSpider(object):
                     _str = _str.replace(",", "")
                 page_num = int(_str) // 10 + 1
                 page_num = 101 if page_num > 100 else page_num
-                page_num = 11
                 for i in range(1, page_num):
-                    url = "https://weixin.sogou.com/weixin?query={}&s_from=hotnews&type=2&page={}&ie=utf8".format(
-                        keyword, i)
-                    url_list.append(dict(url=url, keyword=keyword))
+                    page_url = "{}&page={}".format(url
+                                                   , i)
+                    url_list.append(dict(url=page_url, keyword=keyword))
                 if url_list:
                     return url_list
             return []
         except Exception as e:
-            url = "https://weixin.sogou.com/weixin?query={}&s_from=hotnews&type=2&page={}&ie=utf8".format(
-                keyword, 1)
+            url = "{}&page={}".format(url, 1)
             return [dict(url=url, keyword=keyword)]
 
     def parse_weixin_article_url(self, resp):
@@ -440,12 +391,16 @@ class SouGouKeywordSpider(object):
             if page_url_obj:
                 for tag_soup in page_url_obj:
                     article_id = tag_soup.attrs.get("d")
-                    dic = {"article_id.keyword": article_id}
-                    if self.filter_keyword("detail_type", dic):
+                    if self.filter_keyword(article_id, "detail_type"):
                         continue
                     author = tag_soup.find("div", attrs={"class": "s-p"}).find("a").text.strip()  # 作者
                     time_chuo = tag_soup.find("span", attrs={"class": "s2"}).text
                     article_date = self.parse_time_chuo(time_chuo)  # 时间
+                    task_date = self.params.get("date")
+                    if not self.parse_crawl_date(article_date, task_date):
+                        logger.info("Time exceeds start date data= [ article_date : {}, article_id : {}]".
+                                    format(article_date, resp.get("article_id")))
+                        return
                     url = tag_soup.find("div", attrs={"class": "txt-box"}).find("a").attrs.get("data-share")
                     data = dict(url=url,
                                 keyword=keyword,
@@ -506,8 +461,7 @@ class SouGouKeywordSpider(object):
                 article_url=resp.get("url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            self.save_one_data_to_es(data, dic)
+            self.save_one_data_to_es(data, article_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -523,11 +477,26 @@ class SouGouKeywordSpider(object):
             _time = datetime.now().strftime("%Y-%m-%d %H:%M")
         return datetime.strptime(_time, "%Y-%m-%d %H:%M")
 
+    def parse_crawl_date(self, article_date, task_date):
+        if not task_date:
+            return
+        if ":" in task_date:
+            start_date, end_date = task_date.split(":")
+            _end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+            _article_date = datetime.strptime(article_date.strftime("%Y-%m-%d"), "%Y-%m-%d")
+            if _article_date.__ge__(begin_date):
+                if _article_date.__le__(_end_date):
+                    return article_date
+                else:
+                    return None
+            else:
+                return None
+
 
 if __name__ == "__main__":
-    from service.micro.utils.threading_ import WorkerThread
 
-    data = {"date": "2019-07-25", "q": "撒地方撒地方"}
+    data = {"date": "2019-07-01:2019-07-31", "q": "大学", "wechat_index": "wechat_da_xue_1566464010"}
     weichat = SouGouKeywordSpider(data)
     threads = []
     data_list, weixin_article_url_list = [], []
@@ -539,15 +508,6 @@ if __name__ == "__main__":
             url_list.extend(weichat.get_weixin_page_url(keyword_data))
         except:
             continue
-    #     worker = WorkerThread(url_list, weichat.get_weixin_page_url, (keyword_data,))
-    #     worker.start()
-    #     threads.append(worker)
-    # for work in threads:
-    #     work.join(1)
-    #     if work.isAlive():
-    #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-    #         threads.append(work)
-    # threads = []
     for url_data in url_list:
         try:
             data = weichat.get_weixin_page_data(url_data)

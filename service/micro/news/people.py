@@ -14,6 +14,7 @@ from service.micro.utils import ua
 from service.micro.utils.math_utils import people_str_to_format_time
 from service.micro.news import PEOPLE, NEWS_ES_TYPE
 from service.micro.news.utils.search_es import SaveDataToEs
+from service.micro.news.utils.proxies_util import get_proxies
 
 
 class PeopleSpider(object):
@@ -22,11 +23,12 @@ class PeopleSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
+        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
-    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self):
         logger.info('Processing get people network search list!')
         headers = {
@@ -69,6 +71,7 @@ class PeopleSpider(object):
                 logger.error("get news detail failed")
                 raise InvalidResponseError
         except Exception as e:
+            time.sleep(2)
             raise InvalidResponseError
 
     def parse_news_detail(self, _data):
@@ -138,11 +141,14 @@ class PeopleSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            SaveDataToEs.save_one_data_to_es(data, dic)
+            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
             return data
         except Exception as e:
             logger.exception(e)
+
+
+def get_handler(*args, **kwargs):
+    return PeopleSpider(*args, **kwargs)
 
 
 def people_run():
@@ -156,6 +162,7 @@ def people_run():
         "startURL": [
             "http://www.people.com.cn/"
         ],
+        "website": "all_news_details",
         "id": "",
         "thread": "1",
         "retry": "2",

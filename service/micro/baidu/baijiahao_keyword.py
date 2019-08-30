@@ -31,29 +31,17 @@ class BaiJiaHaoSpider(object):
         self.requester = Requester(timeout=20)
         self.es = ElasticsearchClient()
 
-    def filter_keyword(self, _type, _dic, data=None):
-        mapping = {
-            "query": {
-                "bool":
-                    {
-                        "must":
-                            [{
-                                "term": _dic}],
-                        "must_not": [],
-                        "should": []}},
-            "sort": [],
-            "aggs": {}
-        }
+    def filter_keyword(self, id, _type):
         try:
-            result = self.es.dsl_search(self.es_index, _type, mapping)
-            if result.get("hits").get("hits"):
-                logger.info("dic : {} is existed".format(_dic))
+            result = self.es.get(self.es_index, _type, id)
+            if result.get("found"):
                 return True
             return False
         except Exception as e:
-            return False
+            logger.exception(e)
+            raise e
 
-    def save_one_data_to_es(self, data, dic):
+    def save_one_data_to_es(self, data, id=None):
         """
         将为爬取的数据存入es中
         :param data_list: 数据
@@ -61,12 +49,13 @@ class BaiJiaHaoSpider(object):
         """
         try:
             _type = data.get("type")
-            if self.filter_keyword(_type, dic, data):
-                logger.info("is existed  dic: {}".format(dic))
+            if self.filter_keyword(id, _type):
+                logger.info("Data already exists id: {}".format(id))
                 return
-            self.es.insert(self.es_index, _type, data)
-            logger.info(" save to es success data= {}！".format(data))
+            self.es.insert(self.es_index, _type, data, id)
+            logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
+            logger.exception(e)
             raise e
 
     def random_num(self):
@@ -85,6 +74,7 @@ class BaiJiaHaoSpider(object):
                     acticle_detail_list.extend(acticle_data)
             except:
                 continue
+        del acticle_url_list
         if not acticle_detail_list:
             return dict(
                 status=1,
@@ -92,11 +82,14 @@ class BaiJiaHaoSpider(object):
                 message="百家号暂无数据"
             )
         self.es.create_index(self.es_index, _index_mapping)
-        pool = threadpool.ThreadPool(5)
-        tasks = threadpool.makeRequests(self.parse_baijiahao_article_detail, acticle_detail_list)
-        for task in tasks:
-            pool.putRequest(task)
-        pool.wait()
+        # pool = threadpool.ThreadPool(5)
+        # tasks = threadpool.makeRequests(self.parse_baijiahao_article_detail, acticle_detail_list)
+        # for task in tasks:
+        #     pool.putRequest(task)
+        # pool.wait()
+        for data in acticle_detail_list:
+            self.parse_baijiahao_article_detail(data)
+
 
         return dict(
             status=200,
@@ -328,8 +321,7 @@ class BaiJiaHaoSpider(object):
                 article_url=resp.get("acticle_url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id": article_id}
-            self.save_one_data_to_es(data, dic)
+            self.save_one_data_to_es(data, article_id)
         except Exception as e:
             logger.info(" article is delete article_id: ")
             logger.exception(e)
@@ -337,14 +329,18 @@ class BaiJiaHaoSpider(object):
     def parse_crawl_date(self, article_date, task_date):
         if not task_date:
             return
-        start_date = task_date
         if ":" in task_date:
             start_date, end_date = task_date.split(":")
-        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
-        if article_date.__ge__(begin_date):
-            return article_date
-        else:
-            return
+            _end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+            _article_date = datetime.strptime(article_date.strftime("%Y-%m-%d"), "%Y-%m-%d")
+            if _article_date.__ge__(begin_date):
+                if _article_date.__le__(_end_date):
+                    return article_date
+                else:
+                    return None
+            else:
+                return None
 
     def format_date(self, _date, _time):
         _str = None
@@ -364,29 +360,12 @@ if __name__ == '__main__':
     acticle_detail_list = []
     user_id_list = []
     acticle_url_list = []
-
-    bjh = BaiJiaHaoSpider()
-    keyword_list = bjh.get_weibo_hot_seach()
-    # acticle_url_list = bjh.get_begin_page_url(keyword)
-    # print(acticle_url_list)
-    #
+    keyword_list = ["高校", "教师", "学生", "中小学", "幼儿园", "录取", "录取通知书", "大学", "中学", "小学", "暑假", "补习班", "托管班", "老师"]
     for keyword in keyword_list:
-        try:
-            acticle_url_list.extend(bjh.get_begin_page_url(keyword))
-        except Exception as e:
-            continue
-
-    # acticle_url_list=[{'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1635741021382008318&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635654667073983144&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635635353903371066&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635590611759524641&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635557212014367427&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1627859111282802069&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1627688257550763722&wfr=spider&for=pc', 'http://baijiahao.baidu.com/s?id=1627068587498828788&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1617914796161441161&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1614231717068550033&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': []}, {'keyword': '医闹黑名单', 'acticle_url_list': []}]
-    for url_dic in acticle_url_list:
-        try:
-            acticle_data = bjh.get_acticle_detail(url_dic)
-            if acticle_data:
-                acticle_detail_list.extend(acticle_data)
-        except:
-            continue
-
-    pool = threadpool.ThreadPool(5)
-    tasks = threadpool.makeRequests(bjh.parse_baijiahao_article_detail, acticle_detail_list)
-    for task in tasks:
-        pool.putRequest(task)
-    pool.wait()
+        dic = {
+            "baijiahao_index": "baijiahao_test",
+            "q": keyword,
+            "date": "2019-07-01:2019-07-31"
+        }
+        bjh = BaiJiaHaoSpider(dic)
+        bjh.query()

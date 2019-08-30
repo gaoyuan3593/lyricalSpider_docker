@@ -376,6 +376,51 @@ BAIJIAHAO_DETAIL_MAPPING = {
     }
 }
 
+WEIBO_INDEX = {
+    "index": {
+        "type": "keyword",
+        "index": True,
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "search_num": {
+        "type": "long",
+        "index": True,
+    },
+    "mark": {
+        "type": "keyword",
+        "index": True,
+    },
+    "w_url": {
+        "type": "text",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
 # ------------百度贴吧mapping----------------
 TIEBA_DETAIL_MAPPING = {
     "title": {

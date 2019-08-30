@@ -17,10 +17,10 @@ from service.core.utils.customerized_data_type import enum
 from service.exception import retry
 from service.exception.exceptions import *
 from service.utils.yaml_tool import get_by_name_yaml
+from service.core.utils.proxy import get_proxy_pool
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 requests.adapters.DEFAULT_RETRIES = 500
-
 
 HTTP_METHODS = enum(
     get='GET',
@@ -116,19 +116,28 @@ class Requester(object):
     def clear_cookie(self):
         self.s.cookies.clear()
 
-    def use_proxy(self, proxy=None):
+    def use_proxy(self, proxy=None, tag="stable"):  # stable: 通用, same: 统一使用http.
         if proxy:
             proxies = proxy
         else:
-            conf = get_by_name_yaml("proxy")
-            proxym_meta = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
-                "host": conf["host"],
-                "port": conf["port"],
-                "user": conf["user"],
-                "pass": conf["password"],
-            }
-            proxies = {'http': proxym_meta, 'https': proxym_meta}
-
+            if tag in ["same"]:
+                proxy_pool = get_proxy_pool()
+                if not proxy_pool or len(proxy_pool) == 0:
+                    return None
+                proxy = random.choice(proxy_pool)
+                logger.info("proxy : {}".format(proxy))
+                http_proxy = "http://" + proxy
+                https_proxy = "http://" + proxy
+                proxies = {'http': http_proxy, 'https': https_proxy}
+            else:
+                conf = get_by_name_yaml("proxy")
+                proxym_meta = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
+                    "host": conf["host"],
+                    "port": conf["port"],
+                    "user": conf["user"],
+                    "pass": conf["password"],
+                }
+                proxies = {'http': proxym_meta, 'https': proxym_meta}
         self.s.proxies = proxies
 
     @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
@@ -145,6 +154,7 @@ class Requester(object):
         except (ProxyError, SSLError, HTTPError, Timeout) as e:
             time.sleep(random.uniform(1, 2))
             logger.exception('http get exception: {}'.format(url))
+            random.choice([self.use_proxy(tag="same"), self.use_proxy()])
             raise e
 
     @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
@@ -205,6 +215,7 @@ class Requester(object):
 
 if __name__ == '__main__':
     req = Requester()
+    req.use_proxy(tag="same")
     k = req.get('https://www.baidu.com', params=dict(a=2))
     print(k.text)
     print(k.headers)

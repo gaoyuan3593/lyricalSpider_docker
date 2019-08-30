@@ -184,45 +184,50 @@ class CgtnSpider(object):
 
         df = pd.DataFrame(_list, columns=excel_title)
         df.drop_duplicates(subset=["title"], keep='first', inplace=True)
-        df2 = df.sort_values(by="date", ascending=False)
-        df2.to_excel(r"C:\Users\dell\Desktop\cgtn\{}.xlsx".format(self.keyword), encoding="utf-8", index=False)
+        #df2 = df.sort_values(by="date", ascending=False)
+        df.to_excel(r"C:\Users\dell\Desktop\cgtn\{}.xlsx".format(self.keyword), encoding="utf-8", index=False)
         print("保存成功...")
 
 
 if __name__ == '__main__':
     keyword_list = [
         'US China trade war',
-        'US China trade conflict',
-        'US China trade dispute',
-        'US China trade negotiation',
-        'US China trade talk',
-        'US China trade agreement',
-        'US China trade truce',
-        'US China trade ceasefire',
-        'US China trade tariff',
-        'huawei US China trade',
-        'rare earth US China trade',
-        'forced technology transfer US China trade',
-        'G20 US china trade',
+        # 'US China trade conflict',
+        # 'US China trade dispute',
+        # 'US China trade negotiation',
+        # 'US China trade talk',
+        # 'US China trade agreement',
+        # 'US China trade truce',
+        # 'US China trade ceasefire',
+        'US China trade spat',
+        # 'US China trade tariff',
+        # 'huawei US China trade',
+        # 'rare earth US China trade',
+        # 'forced technology transfer US China trade',
+        # 'G20 US china trade',
     ]
-    data_list = []
-    page_data_list, acticle_list, threads = [], [], []
+
     for keyword in keyword_list:
+        page_data_list, acticle_list, threads = [], [], []
         cgtn = CgtnSpider(keyword)
         num = cgtn.get_cgtn_data(keyword)
         page_data_list.extend(cgtn.get_cgtn_page_data(num, keyword))
         acticle_url_list = cgtn.parse_acticle_url(page_data_list, keyword)
         for acticle_dic in acticle_url_list:
-            # data = cgtn.get_article_data(acticle_dic)
-            # acticle_list.append(data)
-            worker = WorkerThread(acticle_list, cgtn.get_article_data, (acticle_dic,))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
+            try:
+                data = cgtn.get_article_data(acticle_dic)
+                if data:
+                    acticle_list.append(data)
+            except:
+                continue
+        #     worker = WorkerThread(acticle_list, cgtn.get_article_data, (acticle_dic,))
+        #     worker.start()
+        #     threads.append(worker)
+        # for work in threads:
+        #     work.join(1)
+        #     if work.isAlive():
+        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+        #         threads.append(work)
 
         cgtn.save_data_to_excel(acticle_list)
         page_data_list = []

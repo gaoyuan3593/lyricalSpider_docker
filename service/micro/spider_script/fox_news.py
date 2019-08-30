@@ -44,6 +44,8 @@ class FoxNewsSpider(object):
             if resp.status_code == 200:
                 result = resp.json().get("response")
                 num = result.get("numFound") // 10 + 1
+                if num > 1000:
+                    num = 1000
                 page = 0
                 for i in range(num):
                     url = "https://api.foxnews.com/v1/content/search?q={}&fields=date%2Cdescription%2Ctitle%2Curl%2Cimage%2Ctype%2Ctaxonomy&section.path=fnc&start={}".format(
@@ -71,7 +73,7 @@ class FoxNewsSpider(object):
             if resp.status_code == 200:
                 resp_dic = resp.json().get("response")
                 if resp_dic.get("docs"):
-                    #resp_dic.update(url=url)
+                    # resp_dic.update(url=url)
                     return resp_dic.get("docs")
         except Exception as e:
             self.requester.use_proxy()
@@ -95,7 +97,14 @@ class FoxNewsSpider(object):
                 if not content:
                     print(content)
                 content = "".join(content)
-                acticle_data.update(contents=content)
+                source = x_html.xpath('//*[@class="author-byline"]/span/span/text()') or \
+                         x_html.xpath('//*[@class="author-byline"]/span/span/a/text()') or \
+                         x_html.xpath('//*[@class="author-byline opinion"]/span/span/a/text()')
+                source = "".join(source).strip() if source else ""
+                acticle_data.update(
+                    contents=content,
+                    editor=source
+                )
                 del acticle_data["url"]
             return acticle_data
         except Exception as e:
@@ -106,32 +115,39 @@ class FoxNewsSpider(object):
         dic_list, img_list = [], []
         _list = []
         _ = []
+        _adtag_list = []
         for _data in data:
-            if _data.get("type") == "article":
-                _str = _data.get("date")
-                _date = self.parse_date(_str)
-                if not _date:
+            if isinstance(_data, dict):
+                if _data.get("type") == "article":
+                    _str = _data.get("date")
+                    _date = self.parse_date(_str)
+                    if not _date:
+                        continue
+                    title = _data.get("title")
+                    if title in _:
+                        continue
+                    _.append(title)
+                    tag_list = _data.get("taxonomy")
+                    if tag_list:
+                        for i in tag_list:
+                            tag = i.get("adTag")
+                            if tag:
+                                _adtag_list.append(tag)
+                else:
                     continue
-                title = _data.get("title")
-                if title in _:
-                    continue
-                _.append(title)
                 _url = _data.get("url")
                 url = "".join(_url[0] if len(_url) > 1 else _url)
-                desc = _data.get("description")
-                old_img_list = _data.get("image")
-                if old_img_list:
-                    img_list = [i.get("url") for i in old_img_list if i]
+                section = ",".join(_adtag_list) if _adtag_list else ""
+                dic_list.append(dict(
+                    title=title,
+                    date=_date,
+                    section=section,
+                    keyword=self.keyword,
+                    url=url
+                ))
+                _adtag_list = []
             else:
                 continue
-            dic_list.append(dict(
-                title=title,
-                date=_date,
-                url=url,
-                desc=desc,
-                img_list=img_list,
-                keyword=self.keyword
-            ))
         return dic_list
 
     def parse_date(self, _str):
@@ -143,74 +159,79 @@ class FoxNewsSpider(object):
         else:
             return False
 
+    def save_data_to_excel(self, data_list):
+        print("Being data save to excel..")
+        _list = []
+        excel_title = ["title", "date", "editor",  "section", "keyword", "contents"]
+        for data_dic in data_list:
+            _list.append([
+                data_dic.get("title", None),
+                data_dic.get("date", None),
+                data_dic.get("editor", None),
+                data_dic.get("section", None),
+                data_dic.get("keyword", None),
+                data_dic.get("contents", None),
+            ])
 
-def save_data_to_excel(data_list):
-    print("Being data save to excel..")
-    excel_title = ["title", "date", "contents", "keyword", "img"]
-    _list = []
-    for data_dic in data_list:
-        _list.append([
-            data_dic.get("title", None),
-            data_dic.get("date", None),
-            data_dic.get("contents", None),
-            data_dic.get("keyword", None),
-            data_dic.get("img_list", None),
-        ])
-
-    df = pd.DataFrame(_list, columns=excel_title)
-    _time = str(time.time())
-    df.to_excel("{}.xlsx".format("fox_news"), encoding="utf-8", index=False)
-    print("保存成功...")
+        df = pd.DataFrame(_list, columns=excel_title)
+        df.drop_duplicates(subset=["title"], keep='first', inplace=True)
+        #df2 = df.sort_values(by="date", ascending=False)
+        df.to_excel(r"C:\Users\dell\Desktop\fox\{}.xlsx".format(self.keyword), encoding="utf-8", index=False)
+        print("保存成功...")
 
 
 if __name__ == '__main__':
     keyword_list = [
-        'us china trade war',
-        'us china trade conflict',
-        'us china trade dispute',
-        'US China trade negotiations',
-        'us china trade talks',
-        'us china trade agreement',
-        'us China trade truce',
-        'us china trade ceasefire',
-        'us china trade spat',
-        'Sino US tariffs',
-        'huawei china',
-        'rare earth china',
-        'Forced technology issues china',
-        'forced technology transfer'
+        # 'US China trade war',
+        # 'US China trade conflict',
+        # 'US China trade dispute',
+        # 'US China trade negotiation',
+        # 'US China trade talk',
+        # 'US China trade agreement',
+        # 'US China trade truce',
+        # 'US China trade ceasefire',
+        'US China trade spat',
+        # 'US China trade tariff',
+        # 'huawei US China trade',
+        # 'rare earth US China trade',
+        # 'forced technology transfer US China trade',
+        # 'G20 US china trade',
     ]
-    data_list = []
-    page_data_list, acticle_list, threads = [], [], []
+
     for keyword in keyword_list:
+        page_data_list, acticle_list, threads = [], [], []
         fox = FoxNewsSpider(keyword)
         url_list = fox.get_fox_data()
         for url in url_list:
-            # dic = fox.get_fox_page_data(url)
-            # page_data_list.append(dic)
-            worker = WorkerThread(page_data_list, fox.get_fox_page_data, (url, ))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
-        threads = []
+            try:
+                dic = fox.get_fox_page_data(url)
+                page_data_list.extend(dic)
+            except:
+                continue
+        #     worker = WorkerThread(page_data_list, fox.get_fox_page_data, (url,))
+        #     worker.start()
+        #     threads.append(worker)
+        # for work in threads:
+        #     work.join(1)
+        #     if work.isAlive():
+        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+        #         threads.append(work)
+        # threads = []
         acticle_url_list = fox.parse_acticle_url(page_data_list)
         for acticle_dic in acticle_url_list:
-            # try:
-            #     data = fox.get_article_data(acticle_dic)
-            #     acticle_list.append(data)
-            # except Exception as e:
-            #     continue
-            worker = WorkerThread(acticle_list, fox.get_article_data, (acticle_dic,))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
+            try:
+                data = fox.get_article_data(acticle_dic)
+                acticle_list.append(data)
+            except Exception as e:
+                continue
+        #     worker = WorkerThread(acticle_list, fox.get_article_data, (acticle_dic,))
+        #     worker.start()
+        #     threads.append(worker)
+        # for work in threads:
+        #     work.join(1)
+        #     if work.isAlive():
+        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+        #         threads.append(work)
 
-    save_data_to_excel(acticle_list)
+        fox.save_data_to_excel(acticle_list)
+        threads = []

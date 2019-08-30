@@ -39,11 +39,11 @@ if __name__ == '__main__':
     import pytz
 
     tz = pytz.timezone('America/New_York')
-    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '5000'})
+    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '8'})
 
     # 微博热搜定时任务
-    sched.add_job(weibo_hot_run, 'interval', minutes=30, next_run_time=datetime.now(tz) + timedelta(seconds=5))
+    sched.add_job(weibo_hot_run, 'interval', minutes=180, next_run_time=datetime.now(tz) + timedelta(seconds=5))
     # 中国知网定时任务
-    sched.add_job(run_cnki_tasks, 'interval', days=7)
+    # sched.add_job(run_cnki_tasks, 'interval', days=7)
 
     sched.start()

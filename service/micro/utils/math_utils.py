@@ -57,6 +57,7 @@ def str_to_format_time(_str):
         return
     from datetime import datetime, timedelta
     try:
+        _str = _str.strip()
         if "来自主持人的推荐" in _str:
             _str = datetime.now().strftime("%Y-%m-%d %H:%M")
         elif "秒前" in _str:
@@ -66,7 +67,7 @@ def str_to_format_time(_str):
             _str = (datetime.now() + timedelta(minutes=-fen)).strftime("%Y-%m-%d %H:%M")
         elif "今天" in _str:
             today = _str.split("今天")[1]
-            _str = (datetime.now()).strftime("%Y-%m-%d ") + today
+            _str = (datetime.now()).strftime("%Y-%m-%d ") + today.strip()
         elif "月" in _str:
             if "年" in _str:
                 _str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")
@@ -74,11 +75,13 @@ def str_to_format_time(_str):
                 _str = datetime.now().strftime("%Y-") + _str.replace("月", "-").replace("日", "")
                 if len(_str) < 16:
                     _str = datetime.strptime(_str, '%Y-%m-%d %H:%M').strftime("%Y-%m-%d %H:%M")
+        elif re.findall(r"\d+-\d+-\d+ \d+:\d+", _str):
+            _str = re.findall(r"\d+-\d+-\d+ \d+:\d+", _str)[0]
         else:
             _str = datetime.now().strftime("%Y-%m-%d %H:%M")
         return datetime.strptime(_str, "%Y-%m-%d %H:%M")
     except Exception as e:
-        return (datetime.now() + timedelta(minutes=-random.uniform(1, 10))).strftime("%Y-%m-%d %H:%M")
+        return datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
 
 
 def people_str_to_format_time(_str):
@@ -98,12 +101,12 @@ def china_str_to_format_time(_str):
             _str = "".join(_str).strip()
             if "年" in _str or "月" in _str:
                 _str = _str.split("年")[0] + "-" + _str.split("年")[1].replace("月", "-").replace("日", "")
-                return _str
+                return datetime.strptime(_str, "%Y-%m-%d %H:%M")
             elif "发布时间" in _str:
                 old_str = re.findall(r"(\d+-\d+-\d+.\d+:\d+)", _str)[0]
                 if len(old_str) > 16:
                     old_str = old_str[:-3]
-                return old_str
+                return datetime.strptime(old_str, "%Y-%m-%d %H:%M")
             elif "时间" in _str:
                 old_str = re.findall(r"(\d+-\d+-\d+)", _str)[0]
                 if len(old_str) < 16:
@@ -245,7 +248,7 @@ def weibo_date_next(params):
         date_list = date_all(start_date, end_date)
         s_y, s_m, s_d = start_date.split('-')
         for date in date_list:
-            cu_date = "{}-{}-{}".format(s_y, s_m, str(date.day))
+            cu_date = "{}-{}-{}".format(s_y, s_m, "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
             if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d") or \
                     datetime.strptime(start_date, "%Y-%m-%d") == datetime.strptime(end_date, "%Y-%m-%d"):
                 for i in range(1, 24):
@@ -275,8 +278,8 @@ def weibo_date_next(params):
 
 if __name__ == '__main__':
     # a = '2013年09月23日 20:08 '
-    data = {"date": "2019-07-12", "q": "sdafdsafsdaf"}
-    a = wechat_date_next(data)
+    data = {"date": "2019-07-01:2019-07-31", "q": "sdafdsafsdaf"}
+    a = weibo_date_next(data)
     article_date = datetime.strptime("2019-07-12", "%Y-%m-%d")
     task_date = "2019-07-25"
 

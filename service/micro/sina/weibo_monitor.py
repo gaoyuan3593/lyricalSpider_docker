@@ -53,7 +53,7 @@ class WeiBoMonitorSpider(object):
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo')
+        redis_cli = RedisClient('cookies', 'weibo2')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -94,7 +94,6 @@ class WeiBoMonitorSpider(object):
             logger.exception(e)
             raise e
 
-    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def query(self):
         logger.info('Processing get weibo user id= {} ！'.format(self.user_id))
         detail_list = []
@@ -103,16 +102,18 @@ class WeiBoMonitorSpider(object):
         self.es.create_index(self.es_index, _index_mapping)
         url_list = self.search_weibo_user_page()
         for url in url_list:
-            user_resp = self.get_user_page_data(url)
-            detail_list.extend(user_resp)
+            try:
+                user_resp = self.get_user_page_data(url)
+                detail_list.extend(user_resp)
+            except Exception as e:
+                print(e)
+                url_list.append(url)
+                continue
         #     worker = WorkerThread(detail_list, self.get_user_page_data, (url,))
         #     worker.start()
-        #     threads.append(worker)
         # for work in threads:
         #     work.join(1)
-        #     if work.isAlive():
-        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-        #         threads.append(work)
+
         comment_url_list, repost_url_list = self.parse_comment_or_repost_url(detail_list)
 
         if comment_url_list or repost_url_list:
@@ -202,9 +203,8 @@ class WeiBoMonitorSpider(object):
                 logger.error('get weibo user name failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            time.sleep(1)
             self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=1)
@@ -233,10 +233,10 @@ class WeiBoMonitorSpider(object):
                     return response.text
             else:
                 logger.error('get weibo user name failed !')
-                self.requester.use_proxy("same")
                 raise HttpInternalServerError
         except Exception as e:
             self.next_cookie()
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_weibo_detail(self, resp):
@@ -406,7 +406,7 @@ class WeiBoMonitorSpider(object):
         except Exception as e:
             time.sleep(1)
             self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=2)
@@ -443,7 +443,7 @@ class WeiBoMonitorSpider(object):
             return True
         except Exception as e:
             time.sleep(0.5)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_comment_or_repost_url(self, data_list):
@@ -491,7 +491,7 @@ class WeiBoMonitorSpider(object):
                         raise HttpInternalServerError
                 except Exception as e:
                     self.next_cookie()
-                    self.requester.use_proxy(tag="same")
+                    self.requester.use_proxy()
                     raise HttpInternalServerError
         return list(set(user_id_list))
 
@@ -757,7 +757,7 @@ def get_handler(*args, **kwargs):
 
 if __name__ == '__main__':
     dic = {
-        "weibo_index": "weibo_ren_min_ri_bao",
+        "weibo_index": "weibo_ren_min_ri_bao_2803301701",
         # "weibo_user_id": "6218430096",
         "weibo_user_id": "2803301701",
         "date": "2019-08-01:2019-08-03"

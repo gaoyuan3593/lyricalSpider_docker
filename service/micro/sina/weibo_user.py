@@ -1,19 +1,14 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-import random
-import time
+
 import re
 import requests
 from urllib.parse import quote
-from datetime import datetime
 from bs4 import BeautifulSoup
-from service.core.utils.http_ import Requester
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
-from service.micro.utils import ua
-from service.micro.utils.cookie_utils import dict_to_cookie_jar
-from service.db.utils.redis_utils import RedisClient
+from service.micro.news.utils.proxies_util import get_proxies
 from service.db.utils.elasticsearch_utils import ElasticsearchClient
 
 
@@ -22,22 +17,13 @@ class WeiBoUsereSpider(object):
 
     def __init__(self, params):
         self.user_name = params.get("user_name")
-        self.cookie = dict_to_cookie_jar(self.get_cookie())
-        self.requester = Requester(cookie=self.cookie)
+        self.s = requests.session()
         self.es = ElasticsearchClient()
 
-    def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo')
-        return redis_cli.return_choice_cookie()
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
 
-    def next_cookie(self):
-        cookie = dict_to_cookie_jar(self.get_cookie())
-        self.requester = Requester(cookie=cookie)
-
-    def random_num(self):
-        return random.uniform(0.5, 2)
-
-    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=0.5)
     def get_user_resp(self):
         logger.info('Processing get user id data ！')
         try:
@@ -50,8 +36,9 @@ class WeiBoUsereSpider(object):
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'zh-CN,zh;q=0.9',
                 'Host': 's.weibo.com',
+                'Upgrade-Insecure-Requests': '1'
             }
-            response = requests.get(url=url, headers=headers, verify=False)
+            response = self.s.get(url=url, headers=headers, verify=False)
             if "抱歉，未找到“{}”相关结果。".format(self.user_name) in response.text or "请尽量输入常用词" in response.text:
                 return dict(
                     status=200,
@@ -65,13 +52,12 @@ class WeiBoUsereSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             logger.exception(e)
-            self.next_cookie()
+            self.use_proxies()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def query(self):
         logger.info('Processing get weibo user name= {} ！'.format(self.user_name))
-
         user_resp = self.get_user_resp()
         if isinstance(user_resp, dict):
             logger.info("Temporarily no user information. data: {}".format(user_resp))
@@ -158,7 +144,7 @@ def get_handler(*args, **kwargs):
 
 if __name__ == '__main__':
     dic = {
-        "user_name": "地方发光法发个",
+        "user_name": "人民日报",
     }
     wb = WeiBoUsereSpider(dic)
     wb.query()

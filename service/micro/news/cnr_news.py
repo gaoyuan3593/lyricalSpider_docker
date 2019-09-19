@@ -25,7 +25,6 @@ class CnrSpider(object):
         self.content_xpath = data.get("contentXPath")
         self.publish_time_xpath = data.get("publishTimeXPath")
         self.s = requests.session()
-        self.es = ElasticsearchClient()
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {

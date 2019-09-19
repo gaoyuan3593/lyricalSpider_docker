@@ -121,7 +121,7 @@ class BaiJiaHaoSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     def parse_url_kewword(self, keyword):
@@ -173,7 +173,7 @@ class BaiJiaHaoSpider(object):
                             continue
                         data.append(dict(keyword=keyword, acticle_url_list=page_data.get("acticle_url_list")))
         except Exception as e:
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise e
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
@@ -204,7 +204,7 @@ class BaiJiaHaoSpider(object):
             else:
                 raise HttpInternalServerError
         except Exception as e:
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     def parse_next_url(self, resp):
@@ -269,7 +269,7 @@ class BaiJiaHaoSpider(object):
                     raise TimedOutError
             except Exception as e:
                 time.sleep(5)
-                self.requester.use_proxy()
+                self.requester.use_proxy(tag="same")
                 raise HttpInternalServerError
         return data_list
 

@@ -6,7 +6,7 @@ from service import logger
 from service.micro.baidu.baijiahao_keyword import BaiJiaHaoSpider
 from service.micro.baidu.tieba_keyword import TiebaSpider
 from service.micro.sina.weibo_keyword import WeiBoSpider
-from service.micro.sougou_wechat.sougou_keyword import SouGouKeywordSpider
+from service.micro.wechat.sougou_keyword import SouGouKeywordSpider
 from service.micro.utils.apscheduler_ import TaskApscheduler
 from service.utils.seq_no import generate_seq_no
 from service.micro.keyword.utils.utils import remove_job, resume_job, pause_job
@@ -23,6 +23,7 @@ class SearchKeyword(object):
         self.task_id = self.data.get("task_id")
         self.operation = self.data.get("operation")
         self.index_name = self.data.get("index_name")
+        self.index = self.data.get("index")
         self.relative_word = self.data.get("relative_word")
         self.exclude_word = self.data.get("exclude_word")
         self.public_opinion_word = self.data.get("public_opinion_word")
@@ -45,13 +46,13 @@ class SearchKeyword(object):
             return data_dic
 
         if self.operation == OPERATION.CREATE:
-            task = TaskApscheduler(self.get_all_data, job_id=self.seq_no)
             index_list = self.retrun_index_name()
             self.add_parameter(index_list)
             result = [
                 index.get("weibo_index") or index.get("wechat_index") or index.get("baijiahao_index") or index.get(
                     "tieba_index")
                 for index in index_list]
+            task = TaskApscheduler(self.get_all_data, job_id=self.seq_no)
             task.add_job()
             data_dic.update(
                 task_id=self.seq_no,
@@ -110,7 +111,7 @@ class SearchKeyword(object):
 
     def get_all_data(self):
         logger.info("Begin get all data detail ...")
-        for keyword in self.keyword_list[:1]:
+        for keyword in self.keyword_list:
             if not keyword:
                 continue
             try:
@@ -127,11 +128,14 @@ class SearchKeyword(object):
     def retrun_index_name(self):
         from service.micro.keyword import ES_INDEX, hp
         _list = []
-        keyword = self.keyword_list[0]
-        weibo_index = hp(ES_INDEX[0], keyword)
-        wechat_index = hp(ES_INDEX[1], keyword)
-        tieba_index = hp(ES_INDEX[2], keyword)
-        baijiahao_index = hp(ES_INDEX[3], keyword)
+        if self.index:
+            keyword = self.index
+        else:
+            keyword = self.keyword_list[0]
+        weibo_index = hp(ES_INDEX[0], keyword, self.index)
+        wechat_index = hp(ES_INDEX[1], keyword, self.index)
+        tieba_index = hp(ES_INDEX[2], keyword, self.index)
+        baijiahao_index = hp(ES_INDEX[3], keyword, self.index)
         _list.extend([
             dict(weibo_index=weibo_index.lower(), keyword=keyword),
             dict(wechat_index=wechat_index.lower(), keyword=keyword),

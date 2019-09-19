@@ -131,7 +131,7 @@ class SouGouHotSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -158,7 +158,7 @@ class SouGouHotSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -193,7 +193,7 @@ class SouGouHotSpider(object):
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
                 raise RequestFailureError
             else:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 logger.error('get weibo hot search list failed !')
                 raise HttpInternalServerError
         except Exception as e:
@@ -296,7 +296,7 @@ class SouGouHotSpider(object):
                 logger.error("需要扫码登录")
                 self.next_cookie()
                 raise HttpInternalServerError
-            elif keyword in response.text and '<ul class="searchnav" name="scroll-nav">' in response.text:
+            elif '<ul class="searchnav" name="scroll-nav">' in response.text:
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
@@ -349,7 +349,6 @@ class SouGouHotSpider(object):
                 self.next_cookie()
                 random.choice([
                     self.requester.use_proxy(tag="same"),
-                    self.requester.use_proxy()
                 ])
                 raise HttpInternalServerError
             elif "观看" in response.text or "该内容已被发布者删除" in response.text:
@@ -358,7 +357,6 @@ class SouGouHotSpider(object):
                 logger.error('get weibo detail failed !')
                 random.choice([
                     self.requester.use_proxy(tag="same"),
-                    self.requester.use_proxy()
                 ])
                 raise HttpInternalServerError
         except Exception as e:

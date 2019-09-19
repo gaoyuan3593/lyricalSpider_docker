@@ -23,7 +23,7 @@ OPERATION = enum(
 )
 
 
-def hp(title, text):
+def hp(title, text, flag):
     s = ""
     if "," in text:
         text = text.replace(",", "")
@@ -33,7 +33,10 @@ def hp(title, text):
     _str = str(int(time.time()))
     for i in pypinyin.pinyin(text, style=pypinyin.NORMAL):
         s += "{}{}".format(''.join(i), "_")
-    return "{}{}{}".format(title, s, _str)
+    if not flag:
+        return "{}{}{}".format(title, s, _str)
+    else:
+        return "{}{}".format(title, s).strip("_")
 
 
 def hp_account(title, text, user_id):

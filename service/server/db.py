@@ -13,11 +13,11 @@ engine = create_engine('mysql+pymysql://{}:{}@{}:{}/{}'.format(
     conf['password'],
     conf['host'],
     conf['port'],
-    conf['database']), convert_unicode=True)
+    conf['database']), convert_unicode=True, pool_pre_ping=True, isolation_level='AUTOCOMMIT')
 db_session = scoped_session(sessionmaker(autocommit=False,
                                          autoflush=False,
                                          bind=engine))
 
 if __name__ == '__main__':
-    k = db_session.query(DataSource).filter(DataSource.service == "weibo").first()
+    k = db_session.query(DataSource).filter(DataSource.service == "sina").first()
     print(k.handler)

@@ -4,8 +4,8 @@
 from service import logger
 from service.micro.utils.threading_ import WorkerThread
 from service.micro.utils.threading_parse import WorkerThreadParse
-from service.micro.sougou_wechat.sougou_keyword import SouGouKeywordSpider
-from service.micro.sougou_wechat.sougou_hot_search import SouGouHotSpider
+from service.micro.wechat.sougou_keyword import SouGouKeywordSpider
+from service.micro.wechat.sougou_hot_search import SouGouHotSpider
 
 
 def wechat_hot_run():

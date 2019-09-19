@@ -125,7 +125,6 @@ class Requester(object):
                 if not proxy_pool or len(proxy_pool) == 0:
                     return None
                 proxy = random.choice(proxy_pool)
-                logger.info("proxy : {}".format(proxy))
                 http_proxy = "http://" + proxy
                 https_proxy = "http://" + proxy
                 proxies = {'http': http_proxy, 'https': https_proxy}
@@ -140,7 +139,7 @@ class Requester(object):
                 proxies = {'http': proxym_meta, 'https': proxym_meta}
         self.s.proxies = proxies
 
-    @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
+    @retry(max_retries=3, exceptions=(TimedOutError, IncompleteRead,
                                       ServiceUnavailableError, BadRequestError), time_to_sleep=1)
     def get(self, url, header_dict=None, params=EMPTY_PARAMETER, is_not_redirct=True, stream=False):
         logger.info('GET {}'.format(url))
@@ -157,7 +156,7 @@ class Requester(object):
             random.choice([self.use_proxy(tag="same"), self.use_proxy()])
             raise e
 
-    @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
+    @retry(max_retries=3, exceptions=(TimedOutError, IncompleteRead,
                                       ServiceUnavailableError, BadRequestError), time_to_sleep=1)
     def post(self, url, header_dict=None, data_dict='', submission_type=SUBMISSION_TYPE.form, is_not_redirct=False):
         logger.info('POST {}'.format(url))
@@ -178,7 +177,7 @@ class Requester(object):
             logger.exception('http post exception: {}'.format(url))
             raise e
 
-    @retry(max_retries=3, exceptions=(ConnectionResetError, TimedOutError, IncompleteRead,
+    @retry(max_retries=3, exceptions=(TimedOutError, IncompleteRead,
                                       ServiceUnavailableError, BadRequestError), time_to_sleep=1)
     def put(self, url, header_dict=None, data_dict='', is_not_redirct=False):
         logger.info('PUT {}'.format(url))

@@ -39,9 +39,7 @@ class AddMonitorAccount(object):
             index_list = self.retrun_index_name()
             self.add_parameter(index_list)
             result = [
-                index.get("weibo_index") or index.get("douyin_index") or index.get("website_index") or index.get(
-                    "app_index")
-                for index in index_list]
+                index.get("weibo_index") or index.get("website_index") or index.get("wechat_index")for index in index_list]
             task.add_job()
             data_dic.update(
                 task_id=self.seq_no,
@@ -97,8 +95,9 @@ class AddMonitorAccount(object):
     def get_all_data(self):
         logger.info("Begin get all data detail ...")
         try:
-            self.get_website_data(self.now_data)
-            self.get_weibo_account_data(self.now_data)
+            wechat = self.get_wechat_data(self.now_data)
+            website = self.get_website_data(self.now_data)
+            weibo = self.get_weibo_account_data(self.now_data)
             logger.info("task id : {} is task run over.....".format(self.task_id or self.seq_no))
         except Exception as e:
             logger.exception(e)
@@ -107,9 +106,11 @@ class AddMonitorAccount(object):
         from service.micro.keyword import ES_INDEX, hp_account
         _list = []
         weibo_index = hp_account(ES_INDEX[0], self.account, self.weibo_user_id)
+        wechat_index = hp_account(ES_INDEX[1], self.account, self.weibo_user_id)
         website_index = hp_account(ES_INDEX[4], self.account, self.weibo_user_id)
         _list.extend([
             dict(weibo_index=weibo_index.lower(), account=self.account),
+            dict(wechat_index=wechat_index.lower(), account=self.account),
             dict(website_index=website_index.lower(), account=self.account),
         ])
         return _list
@@ -161,6 +162,12 @@ class AddMonitorAccount(object):
             from service.api.utils.ds_utils import get_news_source_with_service
             from service.utils import get_module_from_service
             ds = get_news_source_with_service(self.domain)
+            if not ds:
+                news_data.update(
+                    status=-1,
+                    message="网址不对"
+                )
+                return news_data
             handler = get_module_from_service("news", ds.handler)
             data.update(domain=self.domain)
             website = handler.get_handler(data)
@@ -174,10 +181,26 @@ class AddMonitorAccount(object):
         except Exception as e:
             news_data.update(
                 status=-1,
-                index=None,
                 message="网站爬取失败"
             )
-            return False
+        return news_data
+
+    def get_wechat_data(self, data):
+        wechat_data = {}
+        try:
+            from service.micro.wechat.sougou_monitor import SouGouMonitorSpider
+            wechat_spider = SouGouMonitorSpider(data)
+            wechat_data = wechat_spider.query()
+            if wechat_data.get("status"):
+                return wechat_data
+        except Exception as e:
+            wechat_data.update(
+                status=-1,
+                index=None,
+                message="微信公众号爬取失败"
+            )
+        logger.info("wechat account: {} , result : {}".format(data, wechat_data))
+        return wechat_data
 
 
 def get_handler(*args, **kwargs):

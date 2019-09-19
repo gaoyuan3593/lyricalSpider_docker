@@ -22,7 +22,7 @@ elasticsearch:
 proxy:
   user: 16QNBVKD
   password: 211951
-  host: b5.t.16yun.cn
+  host: u2395.b5.t.16yun.cn
   port: 6460
 
 kuaiproxy:

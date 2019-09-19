@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import random
 import time
-import json
+import requests
 import re
 import hashlib
 from datetime import datetime
@@ -29,7 +29,7 @@ class WeiBoHotSpider(object):
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo')
+        redis_cli = RedisClient('cookies', 'weibo2')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -92,28 +92,28 @@ class WeiBoHotSpider(object):
                 WEIBO_REPOST_QQ.put(case_info)
                 logger.info("save to redis success!!! case_info={}".format(case_info))
 
-    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
+    @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
     def get_hot_search_list(self):
         logger.info('Processing get weibo hot search list!')
-        url = 'https://s.weibo.com/top/summary?cate=realtimehot&sudaref=s.weibo.com'
+        # url = 'https://s.weibo.com/top/summary?cate=realtimehot&sudaref=s.weibo.com&display=0&retcode=6102'
+        url = 'https://s.weibo.com/top/summary?Refer=top_hot&topnav=1&wvr=6'
         headers = {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0",
             'Connection': 'keep-alive',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
             'Host': 's.weibo.com'
         }
         try:
-            response = self.requester.get(url=url, header_dict=headers)
+            response = requests.get(url=url, headers=headers, verify=False)
             if '热搜榜' in response.text and response.status_code == 200:
                 return self.parse_hot_search_data(response.text)
             else:
                 logger.error('get weibo hot search list failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
@@ -128,23 +128,28 @@ class WeiBoHotSpider(object):
                 return {}
             url = data.get("url")
             headers = {
-                'User-Agent': ua(),
+                'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
                 'Connection': 'keep-alive',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'zh-CN,zh;q=0.9',
-                'Host': 's.weibo.com'
+                'Host': 's.weibo.com',
             }
             response = self.requester.get(url=url, header_dict=headers)
-            if '微博搜索' in response.text:
+            if "查看更多结果。还没有账号？" in response.text:
+                logger.error('login out!')
+                self.next_cookie()
+                raise HttpInternalServerError
+            elif "微博内容" in response.text:
+                logger.info("get_weibo_page_data success !!!")
                 return dict(data=response.text, keyword=data.get("keyword"))
             else:
                 logger.error('get weibo detail failed !')
-                self.requester.use_proxy(tag="same")
+                logger.info("resp= {}".format(response.text))
+                self.next_cookie()
                 raise HttpInternalServerError
         except Exception as e:
-            time.sleep(2)
-            self.next_cookie()
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_weibo_html(self, data):
@@ -182,8 +187,17 @@ class WeiBoHotSpider(object):
                                  keyword=data.get("keyword")
                                  ) for obj in page_url_list]
                 if url_list:
+                    logger.info("parse_weibo_page_url success url_list : {}".format(url_list))
+
                     return url_list
-            return []
+            else:
+                return [
+                    dict(keyword=data.get("keyword"),
+                         url="https://s.weibo.com/weibo?q={}&Refer=top&sudaref=s.weibo.com&display=0&retcode=6102".format(
+                             data.get("keyword"))
+                         )
+                ]
+
         except Exception as e:
             logger.exception(e)
             return []
@@ -245,7 +259,7 @@ class WeiBoHotSpider(object):
                     key_user_list = key_user_data
             if "转赞" in weibo_time:
                 weibo_time = weibo_time.split("转赞")[0].strip()
-            comment_num = self.comment_str_to_int(weibo_num[2].text)
+            comment_num = self.comment_str_to_int(weibo_num[1].text)
             repost_num = self.repost_str_to_int(weibo_num[0].text)
             resp_dada = dict(
                 weibo_time=str_to_format_time(weibo_time),  # 发微时间
@@ -255,8 +269,8 @@ class WeiBoHotSpider(object):
                 mid=mid,  # 微博id
                 user_id=user_id,  # 用户id
                 like_num=self.comment_str_to_int(weibo_num[2].text),  # 点赞数
-                com_num=self.comment_str_to_int(weibo_num[1].text),  # 评论数
-                repost_num=self.repost_str_to_int(weibo_num[0].text),  # 转发数
+                com_num=comment_num,  # 评论数
+                repost_num=repost_num,  # 转发数
                 is_forward=1 if is_forward else 0,  # 是否转发
                 is_forward_weibo_id=is_forward_weibo_id,  # 转发原微博id
                 type="detail_type",
@@ -304,7 +318,7 @@ class WeiBoHotSpider(object):
                 return dict(data=resp, type="comment_type", weibo_id=weibo_id, user_id=user_id)
             else:
                 logger.error("get_comment_data falied")
-                random.choice([self.requester.use_proxy(tag="same")])
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
@@ -319,17 +333,18 @@ class WeiBoHotSpider(object):
        :return:
        """
         headers = {
-            "User-Agent": ua()
+            "user-agent": ua()
         }
         try:
-            random_time = self.random_num()
-            time.sleep(random_time)
-            resp = self.requester.get(url, header_dict=headers).text
+            resp = self.requester.get(url, header_dict=headers)
             self.next_cookie()
-            if "首页" in resp and "消息" in resp:
-                return dict(data=resp, type="repost_type", weibo_id=weibo_id, user_id=user_id)
+            if "首页" in resp and "消息" in resp.text:
+                return dict(data=resp.text, type="repost_type", weibo_id=weibo_id, user_id=user_id)
+            elif "charset=utf-8" in resp.text:
+                resp.encoding = "utf-8"
+                return dict(data=resp.text, type="repost_type", weibo_id=weibo_id, user_id=user_id)
             else:
-                random.choice([self.requester.use_proxy(tag="same")])
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             self.next_cookie()
@@ -359,7 +374,7 @@ class WeiBoHotSpider(object):
         except Exception as e:
             time.sleep(1)
             self.next_cookie()
-            random.choice([self.requester.use_proxy(tag="same")])
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=2)
@@ -397,7 +412,7 @@ class WeiBoHotSpider(object):
         except Exception as e:
             time.sleep(1)
             self.next_cookie()
-            random.choice([self.requester.use_proxy(tag="same")])
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_search_data(self, obj):
@@ -465,7 +480,7 @@ class WeiBoHotSpider(object):
                     user_id_list.append(uid)
                 except Exception as e:
                     self.next_cookie()
-                    random.choice([self.requester.use_proxy(tag="same")])
+                    self.requester.use_proxy()
                     raise HttpInternalServerError
         return list(set(user_id_list))
 
@@ -548,7 +563,7 @@ class WeiBoHotSpider(object):
             return forward_user_url_list
         except Exception as e:
             self.next_cookie()
-            random.choice([self.requester.use_proxy(tag="same")])
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=3)
@@ -582,7 +597,7 @@ class WeiBoHotSpider(object):
                             user_id_list.append(user_id)
                 except Exception as e:
                     self.next_cookie()
-                    random.choice([self.requester.use_proxy(tag="same")])
+                    self.requester.use_proxy()
                     raise ServiceUnavailableError
             return list(set(user_id_list))
 
@@ -667,7 +682,7 @@ class WeiBoHotSpider(object):
             html_data = data.get("data")
             if isinstance(html_data, str):
                 resp_obj = BeautifulSoup(html_data, "html.parser")
-                div_list = resp_obj.find_all("div", attrs={"class": "c"})[1:]
+                div_list = resp_obj.find_all("div", attrs={"class": "c"})[2:]
             for div_obj in div_list:
                 _len = len(div_obj.contents)
                 if not div_obj.text or "返回" in div_obj.text:
@@ -698,8 +713,8 @@ class WeiBoHotSpider(object):
                 resp_dada = dict(
                     repost_time=str_to_format_time(repost_time),  # 转发时间
                     platform=platform,  # 平台
-                    repost_contents="".join(repost_contents) if isinstance(repost_contents,
-                                                                           tuple) else repost_contents,  # 转发内容
+                    repost_contents="".join(repost_contents).strip() if isinstance(repost_contents,
+                                                                                   tuple) else repost_contents,  # 转发内容
                     user_id=user_id,  # 用户id
                     user_name="".join(user_name) if isinstance(user_name, tuple) else user_name,  # 用户名
                     weibo_id=data.get("weibo_id"),  # 原微博id
@@ -800,7 +815,7 @@ class WeiBoHotSpider(object):
             uid = re.findall(r"\['oid'\]='(\d+)?", resp)[0]
         except Exception as e:
             self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
         return [uid]
 
@@ -908,6 +923,3 @@ if __name__ == "__main__":
                 logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
                 threads.append(work)
         threads = []
-    import gc
-
-    gc.collect()

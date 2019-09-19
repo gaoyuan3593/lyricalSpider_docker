@@ -166,9 +166,7 @@ class SouGouKeywordSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(self.random_num())
-            random.choice([self.requester.use_proxy(tag="same"),
-                           self.requester.use_proxy()
-                           ])
+            self.requester.use_proxy(tag="same")
             raise RequestFailureError
 
     @retry(max_retries=3, exceptions=(CaptchaVerifiedError,), time_to_sleep=1)
@@ -290,9 +288,8 @@ class SouGouKeywordSpider(object):
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
-                random.choice([self.requester.use_proxy(tag="same"),
-                               self.requester.use_proxy()
-                               ])
+                self.requester.use_proxy(tag="same")
+
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
                 raise RequestFailureError
@@ -331,17 +328,13 @@ class SouGouKeywordSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                random.choice([self.requester.use_proxy(tag="same"),
-                               self.requester.use_proxy()
-                               ])
+                self.requester.use_proxy(tag="same")
                 raise HttpInternalServerError
             elif "观看" in response.text:
                 return
             else:
                 logger.error('get weibo detail failed !')
-                random.choice([self.requester.use_proxy(tag="same"),
-                               self.requester.use_proxy()
-                               ])
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(self.random_num())

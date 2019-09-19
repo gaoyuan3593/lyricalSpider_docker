@@ -19,7 +19,7 @@ class InvalidResponseError(GenericAppError):
 
 
 class TimedOutError(GenericAppError):
-    def __init__(self, err_code=500003, msg=u'网络请求超时!', status_code=200):
+    def __init__(self, err_code=500003, msg='网络请求超时!', status_code=200):
         self.code = err_code
         self.message = msg
 

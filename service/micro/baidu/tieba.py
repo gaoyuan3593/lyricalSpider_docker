@@ -82,7 +82,7 @@ class TiebaSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)

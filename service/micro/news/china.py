@@ -165,7 +165,7 @@ def get_handler(*args, **kwargs):
 def china_spider_run():
     detail_list = []
     data = {
-        "siteName": "新华网",
+        "siteName": "中国网",
         "domain": "http://www.china.com.cn/",
         "startURL": [
             "http://www.china.com.cn/"

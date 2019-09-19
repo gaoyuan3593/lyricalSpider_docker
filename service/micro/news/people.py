@@ -157,7 +157,7 @@ def people_run():
     detail_list = []
     threads = []
     data = {
-        "siteName": "人民网",
+        "siteName": "人民日报",
         "domain": "http://www.people.com.cn/",
         "startURL": [
             "http://www.people.com.cn/"

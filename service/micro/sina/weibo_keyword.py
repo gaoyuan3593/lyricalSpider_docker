@@ -135,7 +135,6 @@ class WeiBoSpider(object):
                     for work in threads:
                         if work.isAlive():
                             logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                            threads.append(work)
                     threads = []
                 else:
                     return dict(
@@ -261,10 +260,11 @@ class WeiBoSpider(object):
                     message="抱歉，未找到“{}”相关结果。".format(keyword)
                 )
             if '微博搜索' in response.text and response.status_code == 200:
+                logger.info("get_weibo_page_data success ")
                 return dict(data=response.text, keyword=keyword, url=url)
             else:
                 logger.error('get weibo detail failed !')
-                random.choice([self.requester.use_proxy("same")])
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             self.next_cookie()
@@ -311,7 +311,7 @@ class WeiBoSpider(object):
                 if url_list:
                     return url_list
             else:
-                return dict(data=response, keyword=self.params)
+                return dict(data=response, keyword=data.get("keyword"))
         except Exception as e:
             logger.exception(e)
             return []
@@ -428,7 +428,7 @@ class WeiBoSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -516,7 +516,7 @@ class WeiBoSpider(object):
             return True
         except Exception as e:
             time.sleep(0.5)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     def parse_comment_or_repost_url(self, data_list):
@@ -609,7 +609,7 @@ class WeiBoSpider(object):
             return forward_user_url_list
         except Exception as e:
             self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=3)
@@ -644,7 +644,7 @@ class WeiBoSpider(object):
                             user_id_list.append(user_id)
                 except Exception as e:
                     self.next_cookie()
-                    self.requester.use_proxy(tag="same")
+                    self.requester.use_proxy()
                     raise ServiceUnavailableError
             return list(set(user_id_list))
 
@@ -860,7 +860,7 @@ class WeiBoSpider(object):
             uid = re.findall(r"\['oid'\]='(\d+)?", resp)[0]
         except Exception as e:
             self.next_cookie()
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
         return [uid]
 

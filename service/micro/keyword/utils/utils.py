@@ -34,7 +34,7 @@ def pause_job(_id):
     :param _id: mongo id
     :return:
     """
-    _c = connection.apscheduler.jobs
+    _c = connection.new_media.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
         sh_time = datetime.datetime.now(tz) + datetime.timedelta(hours=24)
@@ -53,7 +53,7 @@ def resume_job(_id):
     :param _id:
     :return:
     """
-    _c = connection.apscheduler.jobs
+    _c = connection.new_media.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
         sh_time = datetime.datetime.now(tz) + datetime.timedelta(minutes=5)
@@ -72,7 +72,7 @@ def remove_job(_id):
     :param _id:
     :return:
     """
-    _c = connection.apscheduler.jobs
+    _c = connection.new_media.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
         _c.delete_one({"_id": _id})
@@ -80,7 +80,7 @@ def remove_job(_id):
 
 
 if __name__ == '__main__':
-    _id = "ae37049facb11e26c3b8b48be8981f78"
+    _id = "5e76eb1b13b85b15f6050b0cdd40da2d"
     #pause_job(_id)
     resume_job(_id)
     from apscheduler.schedulers.base import BaseScheduler

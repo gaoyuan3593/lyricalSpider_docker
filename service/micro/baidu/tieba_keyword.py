@@ -199,7 +199,7 @@ class TiebaSpider(object):
                 url_list = self.parse_tieba_page_url(resp, keyword)
                 return url_list
         except Exception as e:
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise e
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -231,7 +231,7 @@ class TiebaSpider(object):
                 raise InvalidResponseError
         except Exception as e:
             time.sleep(0.2)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise e
 
     def parse_tieba_page_url(self, resp, keyword):
@@ -413,7 +413,7 @@ class TiebaSpider(object):
 
         except Exception as e:
             time.sleep(self.random_num())
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise InvalidResponseError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
@@ -591,3 +591,13 @@ class TiebaSpider(object):
                     return None
             else:
                 return None
+
+
+if __name__ == '__main__':
+    data = {
+        "task_date": "2019-10-15:2019-10-15",
+        "teiba_index": "test",
+        "q": "嘛叫天津范儿"
+    }
+    tieba = TiebaSpider(data)
+    tieba.query()

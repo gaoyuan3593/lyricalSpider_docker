@@ -53,8 +53,6 @@ def to_json(data, replace_single_quote=True):
 
 
 def str_to_format_time(_str):
-    if not _str:
-        return
     from datetime import datetime, timedelta
     try:
         _str = _str.strip()
@@ -246,9 +244,8 @@ def weibo_date_next(params):
                 ))
             return url_list
         date_list = date_all(start_date, end_date)
-        s_y, s_m, s_d = start_date.split('-')
         for date in date_list:
-            cu_date = "{}-{}-{}".format(s_y, s_m, "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
+            cu_date = "{}-{}-{}".format(date.year, date.month, "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
             if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d") or \
                     datetime.strptime(start_date, "%Y-%m-%d") == datetime.strptime(end_date, "%Y-%m-%d"):
                 for i in range(1, 24):
@@ -278,7 +275,7 @@ def weibo_date_next(params):
 
 if __name__ == '__main__':
     # a = '2013年09月23日 20:08 '
-    data = {"date": "2019-07-01:2019-07-31", "q": "sdafdsafsdaf"}
+    data = {"date": "2019-09-27:2019-10-10", "q": "sdafdsafsdaf"}
     a = weibo_date_next(data)
     article_date = datetime.strptime("2019-07-12", "%Y-%m-%d")
     task_date = "2019-07-25"

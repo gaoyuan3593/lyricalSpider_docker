@@ -66,7 +66,7 @@ class SouGouGongZhongHaoSpider(object):
                 msg="暂无公众号信息"
             )
 
-    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=0.5)
+    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=0.5)
     def get_gongzhonghao_data(self):
         logger.info("{} Begin get gong zhong hao...".format(self.__name__))
         url = "https://weixin.sogou.com/weixin?type=1&s_from=input&query={}&ie=utf8&_sug_=n&_sug_type_=".format(
@@ -89,14 +89,16 @@ class SouGouGongZhongHaoSpider(object):
                 if "用户您好，我们的系统检测到您网络中存在异常访问请求" in resp.text:
                     captcha_code = self.get_captcha_code(self.account)
                     is_ok = self.verify_captcha_code(captcha_code, self.account)
-                    self.requester.use_proxy(tag="same")
                     raise RequestFailureError
             elif self.account in resp.text and resp.text.find("account_article_0"):
                 soup = BeautifulSoup(resp.text, "lxml")
                 li_obj_list = soup.find_all("li", attrs={"id": True})
                 i = 0
                 for li_obj in li_obj_list:
-                    title = li_obj.find("a", attrs={"uigs": "account_article_{}".format(i)}).text.strip()
+                    try:
+                        title = li_obj.find("a", attrs={"uigs": "account_article_{}".format(i)}).text.strip()
+                    except:
+                        continue
                     gong_zhong_hao = li_obj.find("a", attrs={"uigs": "account_name_{}".format(i)}).text.strip()
                     zifuchuo = re.findall(r"timeConvert\('(\d+)'\)", li_obj.text)
                     aid = self.retrun_md5(zifuchuo[0])
@@ -129,6 +131,7 @@ class SouGouGongZhongHaoSpider(object):
                 raise RequestFailureError
         except Exception as e:
             logger.exception(e)
+            self.requester.use_proxy()
             raise RequestFailureError
 
     @retry(max_retries=3, exceptions=(CaptchaVerifiedError,), time_to_sleep=1)
@@ -171,8 +174,9 @@ class SouGouGongZhongHaoSpider(object):
         }
         response = self.requester.post(url, header_dict=headers, data_dict=data)
         response.encoding = "utf-8"
-        data = to_json(response.text)
-        result_code = data.get('code', None)
+        result_data = to_json(response.text)
+        logger.info("result_data : {}".format(result_data))
+        result_code = result_data.get('code', None)
         if result_code == 0:
             snuid = data.get("id")
             self.update_cookie(snuid)

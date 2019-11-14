@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from service import logger
-from service.micro.sougou_wechat.sougou_task import wechat_hot_run
+from service.micro.wechat.sougou_task import wechat_hot_run
 
 
 def run_wechat_hot_tasks():

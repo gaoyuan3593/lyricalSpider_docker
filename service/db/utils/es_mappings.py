@@ -46,11 +46,13 @@ WEIBO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "key_user_list": {
-        "type": "text",
+    "key_user_id_list": {
+        "type": "keyword",
+        "index": True,
     },
-    "forward_user_url_list": {
-        "type": "text",
+    "forward_user_id_list": {
+        "type": "keyword",
+        "index": True,
     },
     "b_keyword": {
         "type": "keyword",
@@ -58,6 +60,10 @@ WEIBO_DETAIL_MAPPING = {
     },
     "topic": {
         "type": "text",
+    },
+    "topic_list": {
+        "type": "keyword",
+        "index": True,
     },
     "has_href": {
         "type": "long",
@@ -246,6 +252,12 @@ WEIBO_USERINFO_MAPPING = {
     },
 }
 
+WEIBO_LEAD_MAPPING = {
+    "lead_text": {
+        "type": "text"
+    },
+}
+
 # ------------微信mapping----------------
 WECHAT_DETAIL_MAPPING = {
     "title": {
@@ -358,51 +370,6 @@ BAIJIAHAO_DETAIL_MAPPING = {
     },
     "article_url": {
         "type": "text",
-    },
-    "crawl_time": {
-        "type": "date",
-        "index": True,
-    },
-    "subject_words": {
-        "type": "nested",
-        "properties": {
-            "words": {
-                "type": "keyword"
-            },
-            "num": {
-                "type": "integer"
-            }
-        }
-    }
-}
-
-WEIBO_INDEX = {
-    "index": {
-        "type": "keyword",
-        "index": True,
-    },
-    "id": {
-        "type": "keyword",
-        "index": True,
-    },
-    "b_keyword": {
-        "type": "keyword",
-        "index": True,
-    },
-    "search_num": {
-        "type": "long",
-        "index": True,
-    },
-    "mark": {
-        "type": "keyword",
-        "index": True,
-    },
-    "w_url": {
-        "type": "text",
-    },
-    "type": {
-        "type": "keyword",
-        "index": True,
     },
     "crawl_time": {
         "type": "date",
@@ -636,6 +603,10 @@ NEWS_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
+    "news_type": {
+        "type": "keyword",
+        "index": True,
+    },
     "source": {
         "type": "keyword",
         "index": True,
@@ -659,3 +630,115 @@ NEWS_DETAIL_MAPPING = {
         }
     }
 }
+
+# ------------微博热搜mapping----------------
+HOT_SEARCH_KEYWORD_WEIBO_MAPPING = {
+    "index": {
+        "type": "keyword",
+        "index": True,
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "result": {
+        "properties": {
+            "heat": {
+                "type": "keyword"
+            },  # "fields": {"keyword": {"ignore_above": 256, "type": "keyword"}}},
+            "time": {
+                "type": "date"
+            }
+        }
+    },
+    "mark": {
+        "type": "keyword",
+        "index": True,
+    },
+    "w_url": {
+        "type": "text",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "text": {
+            "type": "text"
+        },
+    "lead_text": {
+        "type": "text"
+    },
+}
+
+# ------------百度热搜和360热搜mapping----------------
+HOT_SEARCH_KEYWORD_MAPPING = {
+    "index": {
+        "type": "keyword",
+        "index": True,
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "text": {
+        "type": "text"
+    },
+    "result": {
+        "properties": {
+            "heat": {
+                "type": "keyword"
+            },  # "fields": {"keyword": {"ignore_above": 256, "type": "keyword"}}},
+            "time": {
+                "type": "date"
+            }
+        }
+    },
+}
+
+if __name__ == '__main__':
+    import datetime
+
+    from service.db.utils.elasticsearch_utils import ElasticsearchClient
+
+    es = ElasticsearchClient()
+    _index_mapping = {
+        "detail_type":
+            {
+                "properties": WEIBO_DETAIL_MAPPING
+            },
+        "comment_type":
+            {
+                "properties": WEIBO_COMMENT_MAPPING
+            },
+        "repost_type":
+            {
+                "properties": WEIBO_REPOST_MAPPING
+            },
+        "user_type":
+            {
+                "properties": WEIBO_USERINFO_MAPPING
+            },
+        "lead_type":
+            {
+                "properties": WEIBO_LEAD_MAPPING
+            }
+    }
+    es.create_index("weibo_hot_search_detail", _index_mapping)
+    # resu = es.update("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type", "ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802cbc1a45fb8e7", data)
+    resp = es.get("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type",
+                  id="ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802c45774125")
+    resu = es.insert("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type", data,
+                     id="ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802c45774125")
+    print(resu)

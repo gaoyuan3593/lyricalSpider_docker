@@ -108,7 +108,8 @@ class HuanQiuSpider(object):
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
-                type=NEWS_ES_TYPE.huanqiu_news,
+                news_type=NEWS_ES_TYPE.huanqiu_news,
+                type="detail_type",
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )

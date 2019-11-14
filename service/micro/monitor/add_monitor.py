@@ -3,6 +3,7 @@
 import json
 import multiprocessing
 from service import logger
+from service.db.utils.elasticsearch_utils import ElasticsearchClient
 from service.micro.utils.apscheduler_ import TaskApscheduler
 from service.utils.seq_no import generate_seq_no
 from service.micro.keyword.utils.utils import remove_job, resume_job, pause_job
@@ -35,11 +36,12 @@ class AddMonitorAccount(object):
             message="success",
         )
         if self.operation == OPERATION.CREATE:
-            task = TaskApscheduler(self.get_all_data, job_id=self.seq_no)
+            task = TaskApscheduler(self.get_monitor_result, job_id=self.seq_no)
             index_list = self.retrun_index_name()
             self.add_parameter(index_list)
             result = [
-                index.get("weibo_index") or index.get("website_index") or index.get("wechat_index")for index in index_list]
+                index.get("weibo_index") or index.get("website_index") or index.get("wechat_index") for index in
+                index_list]
             task.add_job()
             data_dic.update(
                 task_id=self.seq_no,
@@ -72,7 +74,7 @@ class AddMonitorAccount(object):
                 )
             else:
                 self.add_parameter(_str)
-                task = TaskApscheduler(self.get_all_data, job_id=self.task_id)
+                task = TaskApscheduler(self.get_monitor_result, job_id=self.task_id)
                 task.add_job()
                 # self.save_data_to_redis(self.task_id, _str)
                 data_dic.update(
@@ -87,15 +89,15 @@ class AddMonitorAccount(object):
 
     def seach_obj_mongo(self, _id):
         from service.db.utils.mongo_utils import connection
-        _c = connection.apscheduler.jobs
+        _c = connection.new_media.jobs
         data = _c.find_one({"_id": _id})
         if data:
             return data
 
-    def get_all_data(self):
+    def get_monitor_result(self):
         logger.info("Begin get all data detail ...")
         try:
-            wechat = self.get_wechat_data(self.now_data)
+            #wechat = self.get_wechat_data(self.now_data)
             website = self.get_website_data(self.now_data)
             weibo = self.get_weibo_account_data(self.now_data)
             logger.info("task id : {} is task run over.....".format(self.task_id or self.seq_no))
@@ -161,6 +163,8 @@ class AddMonitorAccount(object):
         try:
             from service.api.utils.ds_utils import get_news_source_with_service
             from service.utils import get_module_from_service
+            from service.db.utils.es_mappings import NEWS_DETAIL_MAPPING
+
             ds = get_news_source_with_service(self.domain)
             if not ds:
                 news_data.update(
@@ -168,6 +172,15 @@ class AddMonitorAccount(object):
                     message="网址不对"
                 )
                 return news_data
+
+            _index_mapping = {
+                "detail_type":
+                    {
+                        "properties": NEWS_DETAIL_MAPPING
+                    },
+            }
+            es = ElasticsearchClient()
+            es.create_index(data.get("website_index"), _index_mapping)
             handler = get_module_from_service("news", ds.handler)
             data.update(domain=self.domain)
             website = handler.get_handler(data)

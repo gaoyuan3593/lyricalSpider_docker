@@ -2,19 +2,23 @@
 mysql:
   database: new_media
   user: root
-  password: tjunmwz123
-  host: 172.19.135.131
+  # password: tjunmwz123
+  password: newmedia1895
+  # host: 172.19.135.131
+  host: 119.3.250.46
   port: 3306
 
 
 redis:
   password: tjunmwz123
-  host: 172.19.135.135
+  # host: 172.19.135.135
+  host: 119.3.250.46
   port: 6379
 
 
 elasticsearch:
-  url: http://172.19.135.135
+  # url: http://172.19.135.135
+  url: http://119.3.250.46
   user:
   password:
   port: 9200
@@ -30,6 +34,12 @@ kuaiproxy:
   password: vk8512345
   host: http://kps.kdlapi.com/api/getkps
   orderid: 916505396905443
+
+mongodb:
+  user: root
+  password: newmedia1895
+  host: 119.3.250.46
+  port: 27017
 
 host: 127.0.0.1
 port: 8080

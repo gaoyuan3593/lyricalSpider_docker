@@ -59,3 +59,7 @@ def base62_decode(string, alphabet=ALPHABET):
         num += alphabet.index(char) * (base ** power)
         idx += 1
     return num
+
+
+if __name__ == '__main__':
+    print(mid_to_str("4378070029094183"))

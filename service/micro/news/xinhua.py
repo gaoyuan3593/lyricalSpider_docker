@@ -128,7 +128,8 @@ class XinHuaSpider(object):
                 source=_source,  # 来源
                 editor=_editor,  # 责任编辑
                 news_url=news_url,  # url连接
-                type=NEWS_ES_TYPE.xinhua,
+                news_type=NEWS_ES_TYPE.xinhua,
+                type="detail_type",
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
@@ -152,7 +153,7 @@ def xinhua_run():
         "startURL": [
             "http://www.xinhuanet.com/"
         ],
-        "website_index": "all_news_details",
+        "website_index": "website_xin_hua_wang_2810373291",
         "id": "",
         "thread": "1",
         "retry": "2",

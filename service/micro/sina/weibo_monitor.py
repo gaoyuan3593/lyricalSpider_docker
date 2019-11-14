@@ -53,7 +53,7 @@ class WeiBoMonitorSpider(object):
         self.es = ElasticsearchClient()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo2')
+        redis_cli = RedisClient('cookies', 'weibo')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -180,10 +180,10 @@ class WeiBoMonitorSpider(object):
                     result = self.es.get(self.es_index, "detail_type", weibo_id)
                     if result.get("found"):
                         flag_list.append(weibo_id)
-                if len(flag_list) >= 5:
-                    for i in range(1, 3):
-                        url = "https://weibo.cn/u/{}?page={}".format(self.user_id, i)
-                        url_list.append(url)
+                # if len(flag_list) >= 5:
+                #     for i in range(1, 3):
+                #         url = "https://weibo.cn/u/{}?page={}".format(self.user_id, i)
+                #         url_list.append(url)
                 else:
                     try:
                         page = soup.find("div", attrs={"id": "pagelist"})
@@ -273,7 +273,11 @@ class WeiBoMonitorSpider(object):
                         contents = content.text.strip()
                 topic = re.findall("#(.*?)#", contents)  # 关键字
                 try:
-                    weibo_time, platform = tag.find("span", attrs={"class": "ct"}).text.split("来自")
+                    is_data = tag.find("span", attrs={"class": "ct"}).text.split("来自")
+                    if len(is_data) >= 2:
+                        weibo_time, platform = is_data
+                    else:
+                        weibo_time, platform = is_data[0], "微博 weibo.com"
                 except:
                     weibo_time, platform = "", "微博 weibo.com"
 
@@ -355,7 +359,7 @@ class WeiBoMonitorSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -379,7 +383,7 @@ class WeiBoMonitorSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=2)
@@ -757,9 +761,9 @@ def get_handler(*args, **kwargs):
 
 if __name__ == '__main__':
     dic = {
-        "weibo_index": "weibo_ren_min_ri_bao_2803301701",
+        "weibo_index": "weibo_tian_jin_ri_bao_3546332963",
         # "weibo_user_id": "6218430096",
-        "weibo_user_id": "2803301701",
+        "weibo_user_id": "3546332963",
         "date": "2019-08-01:2019-08-03"
     }
     wb = WeiBoMonitorSpider(dic)

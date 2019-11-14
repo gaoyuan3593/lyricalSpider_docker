@@ -24,11 +24,6 @@ class SaveDataToEs(object):
 
     @classmethod
     def save_one_data_to_es(cls, index, data, id):
-        """
-        将为爬取的数据存入es中
-        :param data_list: 数据
-        :return:
-        """
         try:
             es = cls.create_client()
             _type = data.get("type")

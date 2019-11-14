@@ -150,10 +150,10 @@ class Requester(object):
             self.cal_next_timeout(True)
             self.exception(resp.status_code)
             return resp
-        except (ProxyError, SSLError, HTTPError, Timeout) as e:
+        except (ProxyError, SSLError, HTTPError, TimedOutError, ServiceUnavailableError) as e:
             time.sleep(random.uniform(1, 2))
             logger.exception('http get exception: {}'.format(url))
-            random.choice([self.use_proxy(tag="same"), self.use_proxy()])
+            self.use_proxy()
             raise e
 
     @retry(max_retries=3, exceptions=(TimedOutError, IncompleteRead,

@@ -98,7 +98,7 @@ class BaiJiaHaoSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=7, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -172,7 +172,7 @@ class BaiJiaHaoSpider(object):
                 time.sleep(15)
                 raise HttpInternalServerError
             else:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(5)
@@ -237,7 +237,7 @@ class BaiJiaHaoSpider(object):
                     logger.info("acticle is exits")
                     return
                 else:
-                    self.requester.use_proxy(tag="same")
+                    self.requester.use_proxy()
                     raise TimedOutError
             except Exception as e:
                 time.sleep(5)

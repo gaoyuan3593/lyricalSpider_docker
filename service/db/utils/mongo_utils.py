@@ -2,10 +2,15 @@
 # -*- coding: utf-8 -*-
 
 from pymongo import MongoClient
+from service.utils.yaml_tool import get_by_name_yaml
 
-MONGODB_USR = ''
-MONGODB_PWD = ''
-MONGODB_HOST = 'mongodb://%s:%s@nut_mongo_host' % (MONGODB_USR, MONGODB_PWD)
-MONGODB_PORT = 27017
+conf = get_by_name_yaml('mongodb')
 
-connection = MongoClient("127.0.0.1", MONGODB_PORT)
+MONGODB_USR = conf["user"]
+MONGODB_PWD = conf["password"]
+MONGODB_HOST = conf["host"]
+MONGODB_PORT = conf["port"]
+MONGODB_CLIENT = 'mongodb://%s:%s@%s' % (MONGODB_USR, MONGODB_PWD, MONGODB_HOST)
+
+
+connection = MongoClient(MONGODB_CLIENT, MONGODB_PORT)

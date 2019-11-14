@@ -166,7 +166,7 @@ class SouGouKeywordSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(self.random_num())
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise RequestFailureError
 
     @retry(max_retries=3, exceptions=(CaptchaVerifiedError,), time_to_sleep=1)
@@ -221,20 +221,20 @@ class SouGouKeywordSpider(object):
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
-        # url = 'http://212.64.127.151:6002/ocr_captcha'
-        # headers = {'Content-Type': 'application/json'}
-        # data = {
-        #     "image_base64": base_str,
-        #     "app_id": "71116455",
-        #     "ocr_code": "0000"
-        # }
-        url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+        url = 'http://212.64.127.151:6002/ocr_captcha'
         headers = {'Content-Type': 'application/json'}
         data = {
             "image_base64": base_str,
-            "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+            "app_id": "71116455",
             "ocr_code": "0000"
         }
+        # url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+        # headers = {'Content-Type': 'application/json'}
+        # data = {
+        #     "image_base64": base_str,
+        #     "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+        #     "ocr_code": "0000"
+        # }
         try:
             req = self.requester.post(url=url, data_dict=data, submission_type="json", header_dict=headers).json()
             logger.info("get captcha code success resp :{}".format(req))
@@ -288,7 +288,7 @@ class SouGouKeywordSpider(object):
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
 
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
@@ -328,7 +328,7 @@ class SouGouKeywordSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 raise HttpInternalServerError
             elif "观看" in response.text:
                 return
@@ -489,45 +489,10 @@ class SouGouKeywordSpider(object):
 
 if __name__ == "__main__":
 
-    data = {"date": "2019-07-01:2019-07-31", "q": "大学", "wechat_index": "wechat_da_xue_1566464010"}
+    data = {"date": "2019-09-19:2019-09-19", "q": "华为mate30", "wechat_index": "wechat_hua_wei_mate30_fa_bu_hui_1568948505"}
     weichat = SouGouKeywordSpider(data)
     threads = []
     data_list, weixin_article_url_list = [], []
     article_detail_list, url_list = [], []
 
     begin_url_list = weichat.query()
-    for keyword_data in begin_url_list:
-        try:
-            url_list.extend(weichat.get_weixin_page_url(keyword_data))
-        except:
-            continue
-    for url_data in url_list:
-        try:
-            data = weichat.get_weixin_page_data(url_data)
-            if data:
-                data_list.append(data)
-        except Exception as e:
-            continue
-
-    if data_list:
-        for data in data_list:
-            # 解析所有页的文章url
-            # weixin_article_url_list.extend(weichat.parse_weixin_article_url(data))
-            worker = WorkerThread(weixin_article_url_list, weichat.parse_weixin_article_url, (data,))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
-    threads = []
-    for article_data in weixin_article_url_list:
-        try:
-            article_detail_list.append(weichat.get_weixin_article_details(article_data))
-        except Exception as e:
-            continue
-
-    threads = []
-    for article in article_detail_list:
-        weichat.parse_weixin_article_detail(article)

@@ -117,9 +117,8 @@ class ElasticsearchClient():
             pass
 
 
-# 微博
-WEIBO_HOT_SEARCH = "weibo_hot_search"
-WEIBO_INDEX = "weibo_index"
+# 微博热搜
+WEIBO_HOT_SEARCH = "weibo_hot_search_detail"
 
 # 搜狗微信
 SOUGOU_KEYWORD_DETAIL = "sougou_keyword_details"
@@ -129,6 +128,15 @@ BSIJISHSO_KRYWORD_DETAIL = "baijiahao_keyword_details"
 
 # 百度贴吧
 BAIDUTIEBA = "baidu_tieba_details"
+
+# 百度热搜
+HOT_SEARCH_BAIDU = "hot_search_keyword_baidu"
+
+# 360热搜榜
+HOT_SEARCH_360 = "hot_search_keyword_360"
+
+# 微博热搜榜
+HOT_SEARCH_WEIBO = "hot_search_keyword_weibo"
 
 # 所有新闻网站
 NEWSDETAIL = "news_details"

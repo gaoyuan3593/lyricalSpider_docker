@@ -134,7 +134,7 @@ class SouGouMonitorSpider(object):
                 if "用户您好，我们的系统检测到您网络中存在异常访问请求" in resp.text:
                     captcha_code = self.get_captcha_code(self.account)
                     is_ok = self.verify_captcha_code(captcha_code, self.account)
-                    self.requester.use_proxy(tag="same")
+                    self.requester.use_proxy()
                     raise RequestFailureError
             elif self.account in resp.text and resp.text.find("account_article_0"):
                 soup = BeautifulSoup(resp.text, "html")
@@ -224,11 +224,18 @@ class SouGouMonitorSpider(object):
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
-        url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+        # url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+        # headers = {'Content-Type': 'application/json'}
+        # data = {
+        #     "image_base64": base_str,
+        #     "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+        #     "ocr_code": "0000"
+        # }
+        url = 'http://212.64.127.151:6002/ocr_captcha'
         headers = {'Content-Type': 'application/json'}
         data = {
             "image_base64": base_str,
-            "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+            "app_id": "71116455",
             "ocr_code": "0000"
         }
         try:
@@ -271,7 +278,7 @@ class SouGouMonitorSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 raise HttpInternalServerError
             elif "观看" in response.text:
                 return
@@ -416,7 +423,6 @@ if __name__ == "__main__":
             weichat = SouGouMonitorSpider(da)
             begin_url_list = weichat.query()
             print(begin_url_list)
-
     wechat()
     import pytz
 

@@ -23,8 +23,12 @@ class PeopleSpider(object):
 
     def __init__(self, data):
         self.domain = data.get("domain")
+        self.url_list = data.get("url_list")
+        self.title_xpath = data.get("title_xpath")
+        self.content_xpath = data.get("content_xpath")
+        self.author_xpath = data.get("author_xpath")
+        self.publish_time_xpath = data.get("publish_time_xpath")
         self.s = requests.session()
-        self.es_index = data.get("website_index")
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -143,7 +147,6 @@ class PeopleSpider(object):
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
             return data
         except Exception as e:
             logger.exception(e)
@@ -159,51 +162,16 @@ def people_run():
     detail_list = []
     threads = []
     data = {
-        "siteName": "人民日报",
+        "url_list": [
+            "http://politics.people.com.cn/n1/2019/1031/c1001-31429463.html",
+            "http://world.people.com.cn/n1/2019/1031/c1002-31429458.html",
+            "http://opinion.people.com.cn/n1/2019/1030/c1003-31429371.html"
+        ],
         "domain": "http://www.people.com.cn/",
-        "startURL": [
-            "http://www.people.com.cn/"
-        ],
-        "website_index": "all_news_details",
-        "id": "",
-        "thread": "1",
-        "retry": "2",
-        "sleep": "0",
-        "maxPageGather": "10",
-        "timeout": "5000",
-        "contentReg": "",
-        "contentXPath": "//*[@id='rwb_zw']/p/text()",
-        "titleReg": "",
-        "titleXPath": "//div[contains(@class,'text_title')]/h1/text()",
-        "categoryReg": "",
-        "categoryXPath": "",
-        "defaultCategory": "",
-        "urlReg": "http://\\w+\\.people.com.cn/\\w+/\\d+\\/\\d+\\/\\w+\\-\\d+\\.html",
-        "charset": "",
-        "publishTimeXPath": "//div[contains(@class,'text_title')]/div/div[1]/text()",
-        "publishTimeReg": "",
-        "publishTimeFormat": "yyyy年MM月dd日HH:mm",
-        "lang": "",
-        "country": "",
-        "userAgent": "Mozilla/5.0 (Windows NT 5.2) AppleWebKit/534.30 (KHTML, like Gecko) Chrome/12.0.742.122 Safari/534.30",
-        "proxyHost": "",
-        "proxyPort": "0",
-        "proxyUsername": "",
-        "proxyPassword": "",
-        "doNLP": True,
-        "needPublishTime": True,
-        "saveCapture": True,
-        "gatherFirstPage": False,
-        "needTitle": False,
-        "needContent": False,
-        "autoDetectPublishDate": False,
-        "ajaxSite": False,
-        "dynamicFields": [
-
-        ],
-        "staticFields": [
-
-        ]
+        "title_xpath": "//div[contains(@class,'text_title')]/h1/text()",
+        "content_xpath": "//*[@id='rwb_zw']/p/text()",
+        "author_xpath": "//*[@class='edit clearfix']/text()",
+        "publish_time_xpath": "//div[contains(@class,'text_title')]/div/div[1]/text()",
     }
     people = PeopleSpider(data)
     try:

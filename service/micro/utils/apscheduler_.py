@@ -2,17 +2,21 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
-
+import logging
 import pytz
+from apscheduler.jobstores.memory import MemoryJobStore
 
 from service.utils.seq_no import generate_seq_no
 from apscheduler.schedulers.background import BackgroundScheduler, BlockingScheduler
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from pymongo import MongoClient
 from service import logger
 from pytz import utc
-import logging
+from service.utils.yaml_tool import get_by_name_yaml
+
+conf = get_by_name_yaml('mongodb')
 
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
@@ -21,9 +25,18 @@ MAX_INSTANCE_NUM = 100
 TIME = 180
 TZ = pytz.timezone('America/New_York')
 
+client = MongoClient(
+    host='mongodb://%s:%s@%s' % (conf["user"], conf["password"], conf["host"]),
+    port=conf["port"],
+)
+
+# jobstores = {
+#     'mongo': MongoDBJobStore(client=client),
+#     'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
+# }
 jobstores = {
-    'mongo': MongoDBJobStore(),
-    'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
+    'mongo': MongoDBJobStore(collection='jobs', database='new_media', client=client),
+    'default': MemoryJobStore()
 }
 
 executors = {
@@ -58,8 +71,11 @@ class TaskApscheduler(object):
         scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors,
                                         job_defaults=job_defaults)
 
+        # scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
+        #                   next_run_time=datetime.now(TZ) + timedelta(seconds=20)
+        #                   )
         scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
-                          next_run_time=datetime.now() + timedelta(seconds=5)
+                          next_run_time=datetime.now() + timedelta(seconds=20)
                           )
         scheduler.start()
 
@@ -78,3 +94,4 @@ if __name__ == '__main__':
     task = TaskApscheduler(myfunc, seq_no)
     task.add_job()
     print(111111111111111111)
+    print(22222222222222222)

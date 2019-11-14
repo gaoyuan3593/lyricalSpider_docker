@@ -41,6 +41,7 @@ class SearchKeyword(object):
         if ";" not in self.relative_word:
             data_dic.update(
                 status=-1,
+                task_id="",
                 message='关键字格式错误, 请用英文“分号”做为分隔符.'
             )
             return data_dic
@@ -52,7 +53,7 @@ class SearchKeyword(object):
                 index.get("weibo_index") or index.get("wechat_index") or index.get("baijiahao_index") or index.get(
                     "tieba_index")
                 for index in index_list]
-            task = TaskApscheduler(self.get_all_data, job_id=self.seq_no)
+            task = TaskApscheduler(self.get_search_keyword_data, job_id=self.seq_no)
             task.add_job()
             data_dic.update(
                 task_id=self.seq_no,
@@ -88,7 +89,7 @@ class SearchKeyword(object):
                 )
             else:
                 self.add_parameter(_str)
-                task = TaskApscheduler(self.get_all_data, job_id=self.task_id)
+                task = TaskApscheduler(self.get_search_keyword_data, job_id=self.task_id)
                 task.add_job()
                 self.save_data_to_redis(self.task_id, _str)
                 data_dic.update(
@@ -104,19 +105,19 @@ class SearchKeyword(object):
 
     def seach_obj_mongo(self, _id):
         from service.db.utils.mongo_utils import connection
-        _c = connection.apscheduler.jobs
+        _c = connection.new_media.jobs
         data = _c.find_one({"_id": _id})
         if data:
             return data
 
-    def get_all_data(self):
+    def get_search_keyword_data(self):
         logger.info("Begin get all data detail ...")
         for keyword in self.keyword_list:
             if not keyword:
                 continue
             try:
                 self.now_data.update(q=keyword.strip())
-                func_list = [self.get_weibo_data, self.get_wechat_data, self.get_baijiahao_data, self.get_tieba_data]
+                func_list = [self.get_weibo_data, self.get_baijiahao_data, self.get_tieba_data]  # self.get_wechat_data,
                 for func in func_list:
                     w = multiprocessing.Process(target=func, args=(self.now_data,))
                     w.start()
@@ -156,8 +157,11 @@ class SearchKeyword(object):
         """
         task_qq = RedisQueue('task_id_index_qq', namespace=task_id, redis_cli=event_redis_cli)
         case_info = json.dumps(index_list)
-        task_qq.put(case_info)
-        logger.info("save to redis success!!! task_id={}, case_info={}".format(task_id, case_info))
+        try:
+            task_qq.put(case_info)
+            logger.info("save to redis success!!! task_id={}, case_info={}".format(task_id, case_info))
+        except Exception as e:
+            logger.exception(e)
 
     def search_redis_data(self, task_id):
         logger.info(" search_redis_data  task_id: {} ".format(task_id))

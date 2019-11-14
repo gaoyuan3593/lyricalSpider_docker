@@ -158,7 +158,7 @@ class SouGouHotSpider(object):
                 keyword_url_list.append(dict(url=url, keyword=keyword))
             return keyword_url_list
         except Exception as e:
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -188,7 +188,7 @@ class SouGouHotSpider(object):
                 url_list = self.parse_weixin_page_url(response.text, keyword)
                 return url_list
             if "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
                 raise RequestFailureError
@@ -253,13 +253,21 @@ class SouGouHotSpider(object):
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
     def ocr_captcha_code(self, base_str):
-        url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+
+        url = 'http://212.64.127.151:6002/ocr_captcha'
         headers = {'Content-Type': 'application/json'}
         data = {
             "image_base64": base_str,
-            "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+            "app_id": "71116455",
             "ocr_code": "0000"
         }
+        # url = 'https://nmd-ai.juxinli.com/ocr_captcha'
+        # headers = {'Content-Type': 'application/json'}
+        # data = {
+        #     "image_base64": base_str,
+        #     "app_id": "71116455&VIP@NzExMTY0NTUmVklQ",
+        #     "ocr_code": "0000"
+        # }
         req = self.requester.post(url=url, data_dict=data, submission_type="json", header_dict=headers).json()
         logger.info("get captcha code success resp :{}".format(req))
         if req.get("errorcode") == 0:
@@ -300,18 +308,18 @@ class SouGouHotSpider(object):
                 logger.info("get weixin page data success ！！！ ")
                 return dict(data=response.text, keyword=keyword, url=url)
             elif "用户您好，我们的系统检测到您网络中存在异常访问请求。" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 captcha_code = self.get_captcha_code(keyword)
                 is_ok = self.verify_captcha_code(captcha_code, keyword)
                 raise RequestFailureError
             else:
                 random.choice([
-                    self.requester.use_proxy(tag="same"),
+                    self.requester.use_proxy(),
                 ])
                 logger.error('get weixin page data failed !')
                 raise HttpInternalServerError
         except Exception as e:
-            self.requester.use_proxy(tag="same")
+            self.requester.use_proxy()
             raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=2)
@@ -343,12 +351,12 @@ class SouGouHotSpider(object):
                 data.update(data=response.text)
                 self.parse_weixin_article_detail(data)
             elif "你的访问过于频繁，需要从微信打开验证身份，是否需要继续访问当前页面？" in response.text:
-                self.requester.use_proxy(tag="same")
+                self.requester.use_proxy()
                 raise HttpInternalServerError
             elif "访问过于频繁，请用微信扫描二维码进行访问" in response.text:
                 self.next_cookie()
                 random.choice([
-                    self.requester.use_proxy(tag="same"),
+                    self.requester.use_proxy(),
                 ])
                 raise HttpInternalServerError
             elif "观看" in response.text or "该内容已被发布者删除" in response.text:
@@ -356,7 +364,7 @@ class SouGouHotSpider(object):
             else:
                 logger.error('get weibo detail failed !')
                 random.choice([
-                    self.requester.use_proxy(tag="same"),
+                    self.requester.use_proxy(),
                 ])
                 raise HttpInternalServerError
         except Exception as e:

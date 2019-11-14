@@ -6,7 +6,7 @@ import os
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(os.path.split(rootPath)[0])
-
+print(sys.path)
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -37,12 +37,13 @@ def run_cnki_tasks():
 
 if __name__ == '__main__':
     import pytz
-
+    print('datetime : {}'.format(datetime.now() + timedelta(seconds=5)))
     tz = pytz.timezone('America/New_York')
-    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '8'})
-
+    logger.info('datetime : {}'.format(datetime.now(tz) + timedelta(seconds=5)))
+    sched = BlockingScheduler({'apscheduler.job_defaults.max_instances': '5000'})
+    logger.info('datetime : {}'.format(datetime.now(tz) + timedelta(seconds=5)))
     # 微博热搜定时任务
-    sched.add_job(weibo_hot_run, 'interval', minutes=180, next_run_time=datetime.now(tz) + timedelta(seconds=5))
+    sched.add_job(weibo_hot_run, 'interval', minutes=120, next_run_time=datetime.now(tz) + timedelta(seconds=5))
     # 中国知网定时任务
     # sched.add_job(run_cnki_tasks, 'interval', days=7)
 

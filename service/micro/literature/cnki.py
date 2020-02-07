@@ -15,7 +15,7 @@ from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from datetime import datetime
 
 
@@ -42,7 +42,7 @@ class CnkiSpider(object):
         self.cookie.update(_pk_ref=now)
         self.keyword = keyword
         self.requester = Requester(cookie=dict_to_cookie_jar(json.dumps(self.cookie)))
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def random_num(self):
         return random.uniform(0.1, 1)

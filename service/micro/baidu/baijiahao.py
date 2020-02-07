@@ -16,7 +16,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
 
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, BSIJISHSO_KRYWORD_DETAIL
+from service.db.utils.elasticsearch_utils import es_client, BSIJISHSO_KRYWORD_DETAIL
 from datetime import datetime, timedelta
 
 
@@ -25,7 +25,7 @@ class BaiJiaHaoSpider(object):
 
     def __init__(self):
         self.requester = Requester(timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -275,18 +275,19 @@ class BaiJiaHaoSpider(object):
                 title=title,
                 author=author,
                 introduction=introduction,
-                article_date=article_date,
-                avatar_img=avatar_img,
+                time=article_date,
+                avatar_img=avatar_img,   # 头像
                 b_keyword=resp.get("keyword"),
-                article_text=article_text,
-                article_id=article_id,
-                type="detail",
-                pics=pics,
+                contents=article_text,
+                id=article_id,
+                type="detail_type",
+                is_pics=pics,
                 user_id=user_id,
-                img_url=img_url,
-                article_url=resp.get("acticle_url"),  # 文章链接
+                img_url_list=img_url,
+                link=resp.get("acticle_url"),  # 文章链接
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            dic = {"article_id.keyword": article_id}
+            dic = {"id": article_id}
             self.save_one_data_to_es(data, dic)
         except Exception as e:
             logger.info(" article is article_id: ")
@@ -295,13 +296,15 @@ class BaiJiaHaoSpider(object):
     def format_date(self, _date, _time):
         _str = None
         try:
+            if "发布时间" in _date:
+                _date = _date.split("：")[1]
             if len(_date) > 5:
                 _str = "20{}{}{}".format(_date, " ", _time)
             else:
                 _str = "2019-{}{}{}".format(_date, " ", _time)
         except:
             _str = (datetime.now() + timedelta(minutes=-10)).strftime("%Y-%m-%d %H:%M")
-        return _str
+        return datetime.strptime(_str, "%Y-%m-%d %H:%M")
 
 
 if __name__ == '__main__':
@@ -311,16 +314,12 @@ if __name__ == '__main__':
 
     bjh = BaiJiaHaoSpider()
     keyword_list = bjh.get_weibo_hot_seach()
-    # acticle_url_list = bjh.get_begin_page_url(keyword)
-    # print(acticle_url_list)
-    #
     for keyword in keyword_list:
         try:
             acticle_url_list.extend(bjh.get_begin_page_url(keyword))
         except Exception as e:
             continue
 
-    # acticle_url_list=[{'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1635741021382008318&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635654667073983144&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635635353903371066&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635590611759524641&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1635557212014367427&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1627859111282802069&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1627688257550763722&wfr=spider&for=pc', 'http://baijiahao.baidu.com/s?id=1627068587498828788&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': ['https://baijiahao.baidu.com/s?id=1617914796161441161&wfr=spider&for=pc', 'https://baijiahao.baidu.com/s?id=1614231717068550033&wfr=spider&for=pc']}, {'keyword': '医闹黑名单', 'acticle_url_list': []}, {'keyword': '医闹黑名单', 'acticle_url_list': []}]
     for url_dic in acticle_url_list:
         try:
             acticle_data = bjh.get_acticle_detail(url_dic)

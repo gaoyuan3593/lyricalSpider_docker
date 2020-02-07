@@ -13,18 +13,24 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.math_utils import xinhua_str_to_format_time
 from service.micro.news import CNR_NEWS, NEWS_ES_TYPE
+from service.db.utils.elasticsearch_utils import ALL_NEWS_DETAILS, NEWS_DETAIL_MAPPING
 from service.micro.news.utils.search_es import SaveDataToEs
+
+_index_mapping = {
+    NEWS_ES_TYPE.cnr_news:
+        {
+            "properties": NEWS_DETAIL_MAPPING
+        }
+}
 
 
 class CnrSpider(object):
     __name__ = 'cnr news'
 
     def __init__(self, data):
-        self.start_url = data.get("startURL")[0]
-        self.title_xpath = data.get("titleXPath")
-        self.content_xpath = data.get("contentXPath")
-        self.publish_time_xpath = data.get("publishTimeXPath")
+        self.domain = data.get("domain")
         self.s = requests.session()
+        SaveDataToEs.create_index(ALL_NEWS_DETAILS, _index_mapping)
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -40,7 +46,7 @@ class CnrSpider(object):
             "aggs": {}
         }
         try:
-            result = self.es.dsl_search("test", _type, mapping)
+            result = self.es.dsl_search("test1", _type, mapping)
             if result.get("hits").get("hits"):
                 logger.info("dic : {} is existed".format(_dic))
                 return True
@@ -158,13 +164,12 @@ class CnrSpider(object):
                 _editor = editor[0]
             data = dict(
                 title=_title,  # 标题
-                article_id=article_id,  # 文章id
-                date=_publish_time,  # 发布时间
+                id=article_id,  # 文章id
+                time=_publish_time,  # 发布时间
                 source=_source,  # 来源
-                editor=_editor,  # 责任编辑
-                news_url=news_url,  # url连接
-                news_type=NEWS_ES_TYPE.cnr_news,
-                type="detail_type",
+                author=_editor,  # 责任编辑
+                link=news_url,  # url连接
+                type=NEWS_ES_TYPE.cnr_news,
                 content=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )

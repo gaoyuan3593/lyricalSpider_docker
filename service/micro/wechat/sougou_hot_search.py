@@ -15,9 +15,9 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
+from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import sougou_str_to_format_time, to_json
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, SOUGOU_KEYWORD_DETAIL
+from service.db.utils.elasticsearch_utils import es_client, SOUGOU_KEYWORD_DETAIL
 
 
 class SouGouHotSpider(object):
@@ -27,7 +27,7 @@ class SouGouHotSpider(object):
         self.ua = ua()
         self.cookies = self.get_cookie()
         self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'wechat')

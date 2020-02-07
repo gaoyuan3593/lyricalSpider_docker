@@ -3,7 +3,7 @@
 
 from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
-from service.core.config.redis_ import weibo_redis_cli
+from service.core.config.redis_ import weibo_redis_cli,event_redis_cli
 import random
 import redis
 
@@ -11,7 +11,7 @@ conf = get_by_name_yaml('redis')
 
 
 class RedisQueue(object):
-    def __init__(self, name, namespace='queue', redis_cli=weibo_redis_cli):
+    def __init__(self, name, namespace='queue', redis_cli=event_redis_cli):
         self.__db = redis_cli
         self.key = '{}:{}'.format(namespace, name)
 
@@ -132,21 +132,21 @@ WEIBO_COMMENT_QQ = RedisQueue('weibo_comment_qq', namespace='weibo_comment_qq')
 WEIBO_REPOST_QQ = RedisQueue('weibo_repost_qq', namespace='weibo_repost_qq')
 
 if __name__ == '__main__':
-    # conn = RedisClient('accounts', 'weibo')
-    # conn_cookie = RedisClient('cookies', 'weibo')
-    # result = conn.usernames()
-    # user = random.choice(list(conn_cookie.all()))
-    # result2 = conn_cookie.get(user)
-    # print(result)
-
-    # get_redis_key("page_id")
-    # print(WEIBO_REPOST_QQ.qsize())
-    # print(WEIBO_COMMENT_QQ.qsize())
     import json
 
-    task_qq = RedisQueue('task_id_index_qq', namespace="8a82171fd72403a1de75b5db04503c94")
-    case_info = json.dumps(["123213", "sadfasdfasdfaf", "asdfasdfsdafasdf434324"])
+    task_qq = RedisQueue('task_id_index_qq', namespace="33bc32628785b44ab22f78b8b91d8cd9")
+    data = [{"weibo_index": "weibo_shi_shui_fa_xian_le_bing_du_1580364476",
+             "keyword": "\u662f\u8ab0\u53d1\u73b0\u4e86\u75c5\u6bd2"},
+            {"wechat_index": "wechat_shi_shui_fa_xian_le_bing_du_1580364476",
+             "keyword": "\u662f\u8ab0\u53d1\u73b0\u4e86\u75c5\u6bd2"},
+            {"tieba_index": "tieba_shi_shui_fa_xian_le_bing_du_1580364476",
+             "keyword": "\u662f\u8ab0\u53d1\u73b0\u4e86\u75c5\u6bd2"},
+            {"baijiahao_index": "baijiahao_shi_shui_fa_xian_le_bing_du_1580364476",
+             "keyword": "\u662f\u8ab0\u53d1\u73b0\u4e86\u75c5\u6bd2"},
+            {"zhihu_index": "zhihu_shi_shui_fa_xian_le_bing_du_1580364476",
+             "keyword": "\u662f\u8ab0\u53d1\u73b0\u4e86\u75c5\u6bd2"}]
+    case_info = json.dumps(data)
     task_qq.put(case_info)
 
-    data = task_qq.get_nowait()
-    print(data)
+
+

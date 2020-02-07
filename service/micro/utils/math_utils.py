@@ -251,8 +251,8 @@ def weibo_date_next(params):
                 for i in range(1, 24):
                     k = start_hours if i == 1 else str(i - 1)
                     _s_date = (cu_date + "-" + k) + ":" + (cu_date + "-" + str(i))
-                    url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".format(q,
-                                                                                                                 _s_date)
+                    url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".\
+                        format(q, _s_date)
                     url_list.append(
                         dict(
                             url=url,
@@ -274,7 +274,8 @@ def weibo_date_next(params):
 
 
 if __name__ == '__main__':
-    # a = '2013年09月23日 20:08 '
+    a = ' 11月19日 23:37'
+    print(str_to_format_time(a))
     data = {"date": "2019-09-27:2019-10-10", "q": "sdafdsafsdaf"}
     a = weibo_date_next(data)
     article_date = datetime.strptime("2019-07-12", "%Y-%m-%d")

@@ -62,4 +62,4 @@ def base62_decode(string, alphabet=ALPHABET):
 
 
 if __name__ == '__main__':
-    print(mid_to_str("4378070029094183"))
+    print(mid_to_str("4440439019149550"))

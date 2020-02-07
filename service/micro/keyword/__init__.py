@@ -9,6 +9,7 @@ ES_INDEX = (
     "wechat_",  # 微信
     "tieba_",  # 贴吧
     "baijiahao_",  # 百家号
+    "zhihu_",  # 知乎
     "website_",  # 新闻网站
     "app_",  # app
     "douyin_",  # 抖音

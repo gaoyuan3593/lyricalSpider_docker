@@ -4,7 +4,7 @@
 
 # ---------微博mapping--------------
 WEIBO_DETAIL_MAPPING = {
-    "weibo_time": {
+    "time": {
         "type": "date",
         "index": True,
     },
@@ -14,7 +14,7 @@ WEIBO_DETAIL_MAPPING = {
     "contents": {
         "type": "text",
     },
-    "weibo_id": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
@@ -26,10 +26,10 @@ WEIBO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "like_num": {
+    "like": {
         "type": "long",
     },
-    "com_num": {
+    "comment_num": {
         "type": "long",
     },
     "repost_num": {
@@ -38,7 +38,7 @@ WEIBO_DETAIL_MAPPING = {
     "is_forward": {
         "type": "integer",
     },
-    "is_forward_weibo_id": {
+    "forward_weibo_id": {
         "type": "keyword",
         "index": True,
     },
@@ -58,22 +58,19 @@ WEIBO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "topic": {
-        "type": "text",
-    },
     "topic_list": {
         "type": "keyword",
         "index": True,
     },
-    "has_href": {
+    "is_has_href": {
         "type": "long",
         "index": True,
     },
-    "pics": {
+    "is_pics": {
         "type": "long",
         "index": True,
     },
-    "videos": {
+    "is_videos": {
         "type": "long",
         "index": True,
     },
@@ -95,7 +92,7 @@ WEIBO_DETAIL_MAPPING = {
 }
 
 WEIBO_COMMENT_MAPPING = {
-    "comment_time": {
+    "time": {
         "type": "date",
         "index": True,
     },
@@ -103,10 +100,10 @@ WEIBO_COMMENT_MAPPING = {
         "type": "keyword",
         "index": True
     },
-    "comment_contents": {
+    "contents": {
         "type": "text",
     },
-    "comment_id": {
+    "id": {
         "type": "keyword",
         "index": True
     },
@@ -126,11 +123,12 @@ WEIBO_COMMENT_MAPPING = {
         "type": "keyword",
         "index": True
     },
-    "comment_like": {
+    "like": {
         "type": "long",
     },
-    "key_user_list": {
-        "type": "text",
+    "key_user_id_list": {
+        "type": "keyword",
+        "index": True
     },
     "subject_words": {
         "type": "nested",
@@ -146,7 +144,7 @@ WEIBO_COMMENT_MAPPING = {
 }
 
 WEIBO_REPOST_MAPPING = {
-    "repost_time": {
+    "time": {
         "type": "date",
         "index": True,
     },
@@ -154,7 +152,7 @@ WEIBO_REPOST_MAPPING = {
         "type": "keyword",
         "index": True
     },
-    "repost_contents": {
+    "contents": {
         "type": "text",
     },
     "user_id": {
@@ -173,11 +171,12 @@ WEIBO_REPOST_MAPPING = {
         "type": "keyword",
         "index": True
     },
-    "repost_like": {
+    "like": {
         "type": "long",
     },
-    "key_user_list": {
-        "type": "text",
+    "key_user_id_list": {
+        "type": "keyword",
+        "index": True
     },
     "subject_words": {
         "type": "nested",
@@ -220,7 +219,8 @@ WEIBO_USERINFO_MAPPING = {
         "type": "text",
     },
     "tags": {
-        "type": "text",
+        "type": "keyword",
+        "index": True
     },
     "weibo_count": {
         "type": "long",
@@ -242,7 +242,8 @@ WEIBO_USERINFO_MAPPING = {
         "index": True
     },
     "grade": {
-        "type": "text",
+        "type": "keyword",
+        "index": True
     },
     "registration": {
         "type": "text",
@@ -270,7 +271,7 @@ WECHAT_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "article_date": {
+    "time": {
         "type": "date",
         "index": True,
     },
@@ -278,10 +279,10 @@ WECHAT_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "article_text": {
+    "contents": {
         "type": "text",
     },
-    "article_id": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
@@ -289,18 +290,14 @@ WECHAT_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "pics": {
+    "is_pics": {
         "type": "long",
         "index": True,
     },
-    "user_id": {
-        "type": "keyword",
-        "index": True,
-    },
-    "img_url": {
+    "img_url_list": {
         "type": "text",
     },
-    "article_url": {
+    "link": {
         "type": "text",
     },
     "is_share": {
@@ -335,7 +332,7 @@ BAIJIAHAO_DETAIL_MAPPING = {
     "introduction": {
         "type": "text",
     },
-    "article_date": {
+    "time": {
         "type": "date",
         "index": True,
     },
@@ -346,10 +343,10 @@ BAIJIAHAO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "article_text": {
+    "contents": {
         "type": "text",
     },
-    "article_id": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
@@ -357,7 +354,7 @@ BAIJIAHAO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "pics": {
+    "is_pics": {
         "type": "long",
         "index": True,
     },
@@ -365,10 +362,10 @@ BAIJIAHAO_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "img_url": {
+    "img_url_list": {
         "type": "text",
     },
-    "article_url": {
+    "link": {
         "type": "text",
     },
     "crawl_time": {
@@ -393,7 +390,7 @@ TIEBA_DETAIL_MAPPING = {
     "title": {
         "type": "text",
     },
-    "content": {
+    "contents": {
         "type": "text",
     },
     "tieba": {
@@ -404,12 +401,16 @@ TIEBA_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "tiezi_time": {
+    "time": {
         "type": "date",
         "index": True,
     },
-    "pics": {
+    "is_pics": {
         "type": "long",
+        "index": True,
+    },
+    "img_url_list": {
+        "type": "text",
         "index": True,
     },
     "b_keywold": {
@@ -420,11 +421,11 @@ TIEBA_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "tid": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
-    "fid": {
+    "user_id": {
         "type": "keyword",
         "index": True,
     },
@@ -446,15 +447,15 @@ TIEBA_DETAIL_MAPPING = {
 }
 
 TIEBA_COMMENT_MAPPING = {
-    "user": {
+    "user_name": {
         "type": "keyword",
         "index": True,
     },
-    "date": {
+    "time": {
         "type": "date",
         "index": True,
     },
-    "replay_text": {
+    "contents": {
         "type": "text",
     },
     "nick_name": {
@@ -465,7 +466,7 @@ TIEBA_COMMENT_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "level_name": {
+    "level_explain": {
         "type": "text",
     },
     "cur_score": {
@@ -474,11 +475,11 @@ TIEBA_COMMENT_MAPPING = {
     "name_u": {
         "type": "text",
     },
-    "author_id": {
+    "user_id": {
         "type": "keyword",
         "index": True,
     },
-    "replay_id": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
@@ -490,7 +491,7 @@ TIEBA_COMMENT_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "replay_no": {
+    "comment_no": {
         "type": "keyword",
         "index": True,
     },
@@ -502,11 +503,11 @@ TIEBA_COMMENT_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "pics": {
+    "is_pics": {
         "type": "long",
         "index": True,
     },
-    "img_url": {
+    "img_url_list": {
         "type": "text",
     },
     "crawl_time": {
@@ -527,7 +528,7 @@ TIEBA_COMMENT_MAPPING = {
 }
 
 TIEBA_USER_MAPPING = {
-    "user": {
+    "user_name": {
         "type": "keyword",
         "index": True,
     },
@@ -543,11 +544,11 @@ TIEBA_USER_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "tiezi_num": {
+    "statuses_count": {
         "type": "long",
         "index": True,
     },
-    "vip_days": {
+    "vip_day": {
         "type": "keyword",
         "index": True,
     },
@@ -555,7 +556,7 @@ TIEBA_USER_MAPPING = {
         "type": "long",
         "index": True,
     },
-    "author_id": {
+    "id": {
         "type": "keyword",
         "index": True,
     },
@@ -579,23 +580,133 @@ TIEBA_USER_MAPPING = {
         "index": True,
     }
 }
-
-# ------------各类新闻网站mapping----------------
-NEWS_DETAIL_MAPPING = {
+# ------------知乎mapping-------------------
+# TODO 知乎文章详情
+ZHIHU_DETAIL_MAPPING = {
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "user_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "user_id": {
+        "type": "keyword",
+        "index": True,
+    },
     "title": {
+        "type": "text"
+    },
+    "description": {
         "type": "text",
     },
-    "editor": {
-        "type": "text",
+    "time": {
+        "type": "date",
+        "index": True,
     },
-    "date": {
+    "update_time": {
         "type": "date",
         "index": True,
     },
     "contents": {
-        "type": "text",
+        "type": "text"
     },
-    "article_id": {
+    "like": {
+        "type": "long",
+    },
+    "comment_num": {
+        "type": "long",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "link": {
+        "type": "text"
+    },
+    "is_has_href": {
+        "type": "long",
+        "index": True,
+    },
+    "is_pics": {
+        "type": "long",
+        "index": True,
+    },
+    "is_videos": {
+        "type": "long",
+        "index": True,
+    },
+    "img_url_list": {
+        "type": "text",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
+# TODO 知乎评论详情
+ZHIHU_COMMENT_MAPPING = {
+    "user_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "user_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "like": {
+        "type": "long"
+    },
+    "zhihu_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "time": {
+        "type": "date",
+        "index": True,
+    },
+    "contents": {
+        "type": "text"
+    },
+    "is_reply": {
+        "type": "keyword",
+        "index": True,
+    },
+    "reply_user": {
+        "type": "keyword",
+        "index": True,
+    },
+    "reply_user_id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "is_author": {
+        "type": "keyword",
+        "index": True,
+    },
+    "is_parent_author": {
         "type": "keyword",
         "index": True,
     },
@@ -603,15 +714,94 @@ NEWS_DETAIL_MAPPING = {
         "type": "keyword",
         "index": True,
     },
-    "news_type": {
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    }
+}
+
+# TODO 知乎用户详情
+ZHIHU_USER_MAPPING = {
+    "id": {
         "type": "keyword",
+        "index": True,
+    },
+    "url_token": {
+        "type": "keyword",
+        "index": True,
+    },
+    "user_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "headline": {
+        "type": "text"
+    },
+    "gender": {
+        "type": "keyword",
+        "index": True,
+    },
+    "user_type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "profile_image_url": {
+        "type": "text"
+    },
+    "is_followed": {
+        "type": "keyword",
+        "index": True,
+    },
+    "is_following": {
+        "type": "keyword",
+        "index": True,
+    },
+    "topic_list": {
+        "type": "keyword",
+        "index": True,
+    },
+    "introduction": {
+        "type": "text",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    }
+}
+
+# ------------各类新闻网站mapping----------------
+NEWS_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "time": {
+        "type": "date",
         "index": True,
     },
     "source": {
         "type": "keyword",
         "index": True,
     },
-    "news_url": {
+    "author": {
+        "type": "keyword",
+        "index": True,
+    },
+    "link": {
+        "type": "text",
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "contents": {
         "type": "text",
     },
     "crawl_time": {
@@ -667,8 +857,8 @@ HOT_SEARCH_KEYWORD_WEIBO_MAPPING = {
         "index": True,
     },
     "text": {
-            "type": "text"
-        },
+        "type": "text"
+    },
     "lead_text": {
         "type": "text"
     },
@@ -699,7 +889,7 @@ HOT_SEARCH_KEYWORD_MAPPING = {
         "properties": {
             "heat": {
                 "type": "keyword"
-            },  # "fields": {"keyword": {"ignore_above": 256, "type": "keyword"}}},
+            },
             "time": {
                 "type": "date"
             }
@@ -707,38 +897,87 @@ HOT_SEARCH_KEYWORD_MAPPING = {
     },
 }
 
+# ------------监控报纸mapping----------------
+PAPER_ALL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "time": {
+        "type": "date",
+        "index": True,
+    },
+    "week": {
+        "type": "keyword",
+        "index": True,
+    },
+    "word_num": {
+        "type": "long"
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "author": {
+        "type": "keyword",
+        "index": True,
+    },
+    "column": {
+        "type": "keyword",
+        "index": True,
+    },
+    "page": {
+        "type": "keyword",
+        "index": True,
+    },
+    "pdf": {
+        "type": "text"
+    },
+    "pdf_content": {
+        "type": "text"
+    },
+    "link": {
+        "type": "text"
+    },
+    "paper_name": {
+        "type": "keyword",
+        "index": True,
+    },
+    "abstract": {
+        "type": "text"
+    },
+    "contents": {
+        "type": "text"
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
 if __name__ == '__main__':
     import datetime
 
-    from service.db.utils.elasticsearch_utils import ElasticsearchClient
+    from service.db.utils.elasticsearch_utils import es_client
 
-    es = ElasticsearchClient()
     _index_mapping = {
-        "detail_type":
+        "index_type":
             {
-                "properties": WEIBO_DETAIL_MAPPING
-            },
-        "comment_type":
-            {
-                "properties": WEIBO_COMMENT_MAPPING
-            },
-        "repost_type":
-            {
-                "properties": WEIBO_REPOST_MAPPING
-            },
-        "user_type":
-            {
-                "properties": WEIBO_USERINFO_MAPPING
-            },
-        "lead_type":
-            {
-                "properties": WEIBO_LEAD_MAPPING
+                "properties": PAPER_ALL_MAPPING
             }
     }
-    es.create_index("weibo_hot_search_detail", _index_mapping)
-    # resu = es.update("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type", "ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802cbc1a45fb8e7", data)
-    resp = es.get("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type",
-                  id="ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802c45774125")
-    resu = es.insert("wechat_hua_wei_mate30_fa_bu_hui_1568948505", "detail_type", data,
-                     id="ab735a258a90e8e1-6bee54fcbd896b2a-2991b56af665bb0b1802c45774125")
-    print(resu)
+    es_client.create_index("all_paper_details", _index_mapping)

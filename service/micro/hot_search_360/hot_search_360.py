@@ -10,7 +10,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from service.db.utils.es_mappings import HOT_SEARCH_KEYWORD_MAPPING
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, HOT_SEARCH_360
+from service.db.utils.elasticsearch_utils import es_client, HOT_SEARCH_360
 from datetime import datetime, timedelta
 
 
@@ -19,7 +19,7 @@ class HotSeach360Spider(object):
 
     def __init__(self):
         self.requester = Requester(timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
         self.create_index()
 
     def create_index(self):

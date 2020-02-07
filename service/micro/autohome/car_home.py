@@ -16,7 +16,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
 
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from datetime import datetime
 
 
@@ -27,7 +27,7 @@ class AutoHomeSpider(object):
         self.cookie = self.next_cookie()
         self.keyword = keyword
         self.requester = Requester(cookie=dict_to_cookie_jar(json.dumps(self.cookie)), timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def random_num(self):
         return random.uniform(0.1, 0.3)

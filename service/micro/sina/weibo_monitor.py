@@ -17,7 +17,7 @@ from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time, weibo_date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from service.db.utils.es_mappings import (WEIBO_DETAIL_MAPPING, WEIBO_COMMENT_MAPPING, WEIBO_REPOST_MAPPING,
                                           WEIBO_USERINFO_MAPPING)
 
@@ -50,7 +50,7 @@ class WeiBoMonitorSpider(object):
         self.user_id = self.params.get("weibo_user_id")
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'weibo')
@@ -97,52 +97,41 @@ class WeiBoMonitorSpider(object):
     def query(self):
         logger.info('Processing get weibo user id= {} ！'.format(self.user_id))
         detail_list = []
-        threads = []
-        comment_list, repost_list = [], []
         self.es.create_index(self.es_index, _index_mapping)
         url_list = self.search_weibo_user_page()
         for url in url_list:
             try:
                 user_resp = self.get_user_page_data(url)
-                detail_list.extend(user_resp)
+                if user_resp:
+                    detail_list.extend(user_resp)
+                else:
+                    break
             except Exception as e:
-                print(e)
                 url_list.append(url)
                 continue
-        #     worker = WorkerThread(detail_list, self.get_user_page_data, (url,))
-        #     worker.start()
-        # for work in threads:
-        #     work.join(1)
 
-        comment_url_list, repost_url_list = self.parse_comment_or_repost_url(detail_list)
-
-        if comment_url_list or repost_url_list:
-            for data in comment_url_list:  # 所有评论url
-                weibo_id = data.get("weibo_id")
-                user_id = data.get("user_id")
-                for url in data.get("url_list"):
-                    worker = WorkerThread(comment_list, self.get_comment_data, (url, weibo_id, user_id))
-                    worker.start()
-                    threads.append(worker)
-                for work in threads:
-                    work.join(1)
-                    if work.isAlive():
-                        logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                        threads.append(work)
-                threads = []
-
-            for data in repost_url_list:  # 所有转发url
-                weibo_id = data.get("weibo_id")
-                user_id = data.get("user_id")
-                for url in data.get("url_list"):
-                    worker = WorkerThread(repost_list, self.get_repost_data, (url, weibo_id, user_id))
-                    worker.start()
-                    threads.append(worker)
-                for work in threads:
-                    work.join(1)
-                    if work.isAlive():
-                        logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                        threads.append(work)
+        # comment_url_list, repost_url_list = self.parse_comment_or_repost_url(detail_list)
+        #
+        # if comment_url_list or repost_url_list:
+        #     for data in comment_url_list:  # 所有评论url
+        #         weibo_id = data.get("weibo_id")
+        #         user_id = data.get("user_id")
+        #         for url in data.get("url_list"):
+        #             try:
+        #                 self.get_comment_data(url, weibo_id, user_id)
+        #             except Exception as e:
+        #                 logger.exception(e)
+        #                 continue
+        #
+        #     for data in repost_url_list:  # 所有转发url
+        #         weibo_id = data.get("weibo_id")
+        #         user_id = data.get("user_id")
+        #         for url in data.get("url_list"):
+        #             try:
+        #                 self.get_repost_data(url, weibo_id, user_id)
+        #             except Exception as e:
+        #                 logger.exception(e)
+        #                 continue
 
         return dict(
             status=200,
@@ -173,30 +162,15 @@ class WeiBoMonitorSpider(object):
             elif self.user_id in response.text and response.status_code == 200:
                 url_list, flag_list = [], []
                 soup = BeautifulSoup(response.text, "lxml")
-                div_list = soup.find_all("div", attrs={"id": True})[:-1]
-                for div in div_list:
-                    str_id = div.attrs.get("id")
-                    weibo_id = str_id.split("_")[1]
-                    result = self.es.get(self.es_index, "detail_type", weibo_id)
-                    if result.get("found"):
-                        flag_list.append(weibo_id)
-                # if len(flag_list) >= 5:
-                #     for i in range(1, 3):
-                #         url = "https://weibo.cn/u/{}?page={}".format(self.user_id, i)
-                #         url_list.append(url)
+                page = soup.find("div", attrs={"id": "pagelist"})
+                if page:
+                    num = re.findall(r"(\d+)页", page.text)[0]
+                    for i in range(1, int(num)):
+                        url = "https://weibo.cn/u/{}?page={}".format(self.user_id, i)
+                        url_list.append(url)
                 else:
-                    try:
-                        page = soup.find("div", attrs={"id": "pagelist"})
-                        if page:
-                            num = re.findall(r"(\d+)页", page.text)[0]
-                            for i in range(1, int(num) + 1):
-                                url = "https://weibo.cn/u/{}?page={}".format(self.user_id, i)
-                                url_list.append(url)
-                        else:
-                            url_list.append("https://weibo.cn/u/{}?page={}".format(self.user_id, 1))
-                    except Exception as e:
-                        logger.exception(e)
-                        raise HttpInternalServerError
+                    url_list.append("https://weibo.cn/u/{}?page={}".format(self.user_id, 1))
+
                 return url_list
 
             else:
@@ -257,20 +231,15 @@ class WeiBoMonitorSpider(object):
                     _content = re.findall(r"转发理由:(.*)赞", tag.text)
                     if _content:
                         contents = _content[0].strip()
-                    content = tag.contents[1]
                 else:
-                    content = tag.find("span", attrs={"class": "ctt"})
-                    if "全文" in content.text:
-                        a_tag = content.find("a")
-                        if "全文" in a_tag.text:
-                            con_url = "https://weibo.cn" + a_tag.get("href")
-                            con_resp = self.get_user_page_data(con_url, flag=False)
-                            con_soup = BeautifulSoup(con_resp, "lxml")
-                            contents = con_soup.find("span", attrs={"class": "ctt"}).text.strip()
-                        else:
-                            contents = content.text.strip()
+                    if "全文" in tag.text:
+                        con_url = "https://weibo.cn/comment/{}".format(weibo_id)
+                        con_resp = self.get_user_page_data(con_url, flag=False)
+                        con_soup = BeautifulSoup(con_resp, "lxml")
+                        contents = con_soup.find("div", attrs={"id": "M_"}).text.strip().split("关注")[0].strip()
                     else:
-                        contents = content.text.strip()
+                        contents = tag.text.split("赞")[0].strip()
+
                 topic = re.findall("#(.*?)#", contents)  # 关键字
                 try:
                     is_data = tag.find("span", attrs={"class": "ct"}).text.split("来自")
@@ -280,24 +249,17 @@ class WeiBoMonitorSpider(object):
                         weibo_time, platform = is_data[0], "微博 weibo.com"
                 except:
                     weibo_time, platform = "", "微博 weibo.com"
-
                 like_num = re.findall(r"赞\[(\d+)\] 转发", tag.text)
                 comment_num = re.findall(r"评论\[(\d+)\] 收藏", tag.text)
                 repost_num = re.findall(r"转发\[(\d+)\] 评论", tag.text)
-                is_photo = tag.find("img")
-                if is_photo:
+                if "组图" in tag.text:
                     pics = 1
-                try:
-                    is_videos = tag.contents[1].contents[0].attrs.get("href")
-                    if is_videos:
-                        if "video" in is_videos:
-                            videos = 1
-                except:
-                    videos = 0
+                if "微博视频" in tag.text or "秒拍视频" in tag.text:
+                    videos = 1
                 if "请戳右边" in contents:
                     has_href = 1
                 try:
-                    user_key_list = content.find_all("a")
+                    user_key_list = tag.find_all("a")
                     if "//@" in contents:
                         forward_user_url_list = self.parse_key_user_list(user_key_list)  # 解析转发用户链列表
                     elif "@" in contents:
@@ -305,33 +267,35 @@ class WeiBoMonitorSpider(object):
                 except Exception as e:
                     key_user_list = []
                     forward_user_url_list = []
-
+                weibo_time = str_to_format_time(weibo_time)
+                if not datetime.today().day.__eq__(weibo_time.day):
+                    return
                 resp_dada = dict(
-                    weibo_time=str_to_format_time(weibo_time),  # 发微时间
+                    time=weibo_time,  # 发微时间
                     platform=platform,  # 平台
                     contents=contents,  # 内容
-                    weibo_id=weibo_id,  # 微博id
+                    id=weibo_id,  # 微博id
                     mid=mid,  # 微博id
                     user_id=self.user_id,  # 用户id
-                    like_num=int(like_num[0]),  # 点赞数
-                    com_num=int(comment_num[0]),  # 评论数
+                    like=int(like_num[0]),  # 点赞数
+                    comment_num=int(comment_num[0]),  # 评论数
                     repost_num=int(repost_num[0]),  # 转发数
                     is_forward=1 if is_forward else 0,  # 是否转发
-                    is_forward_weibo_id=is_forward_weibo_id,  # 转发原微博id
+                    forward_weibo_id=is_forward_weibo_id,  # 转发原微博id
                     type="detail_type",
                     key_user_list=key_user_list,  # @ 用户id 列表
                     forward_user_url_list=forward_user_url_list,  # 转发链 用户id列表
-                    topic=topic,  # 双#号话题
-                    has_href=has_href,  # 是否有网页链接
-                    pics=pics,  # 是否有图片
-                    videos=videos,  # 是否有视频
+                    topic_list=topic,  # 双#号话题
+                    is_has_href=has_href,  # 是否有网页链接
+                    is_pics=pics,  # 是否有图片
+                    is_videos=videos,  # 是否有视频
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
                 self.save_one_data_to_es(resp_dada, weibo_id)
                 data_list.append(
                     dict(com_num=resp_dada.get("com_num"),
                          repost_num=resp_dada.get("repost_num"),
-                         weibo_id=resp_dada.get("weibo_id"))
+                         weibo_id=resp_dada.get("id"))
                 )
         except Exception as e:
             logger.exception(e)
@@ -455,14 +419,14 @@ class WeiBoMonitorSpider(object):
         try:
             data_list = list(filter(None, data_list))
             for data in data_list:
-                comment_num = data.get("com_num")
+                comment_num = data.get("comment_num")
                 weibo_id = data.get("weibo_id")
                 repost_num = data.get("repost_num")
                 if comment_num:
                     count = 2 if comment_num < 10 else comment_num // 10 + 2
                     comment_url_list.append(dict(user_id=self.user_id, weibo_id=weibo_id, url_list=[
                         "https://weibo.cn/comment/{}?&uid={}&page={}".format(weibo_id, self.user_id, i) for i in
-                        range(1, count)]))
+                        range(1, 51)]))
                 if repost_num:
                     count = 2 if repost_num < 10 else repost_num // 10 + 2
                     repost_url_list.append(dict(user_id=self.user_id, weibo_id=weibo_id, url_list=[
@@ -546,7 +510,8 @@ class WeiBoMonitorSpider(object):
                     comment_like, comment_time, platform = 0, datetime.now().strftime('%Y-%m-%d %H:%M'), "网页"
                 comment = div_obj.text.split("举报")[0].split(":")
                 if len(comment) >= 3:
-                    comment_contents = "".join(div_obj.text.split("举报")[0].split(":")[1:])
+                    # comment_contents = "".join(div_obj.text.split("举报")[0].split(":")[1:])
+                    comment_contents = comment[2].strip()
                 else:
                     comment_contents = comment[1].strip(),  # 评论内容
                 comment_id = div_obj.attrs.get("id").split("_")[1].strip()  # 评论id
@@ -554,23 +519,23 @@ class WeiBoMonitorSpider(object):
                 le_list = div_obj.find("a").attrs.get("href").split("/"),  # 用户id
                 user_id = le_list[0][1] if len(le_list[0]) == 2 else le_list[0][2]
                 resp_dada = dict(
-                    comment_time=str_to_format_time(comment_time),  # 评论时间
+                    time=str_to_format_time(comment_time),  # 评论时间
                     platform=platform,  # 平台
-                    comment_contents="".join(comment_contents) if isinstance(comment_contents,
-                                                                             tuple) else comment_contents,  # 评论内容
-                    comment_id=comment_id,  # 评论id
+                    contents="".join(comment_contents) if isinstance(comment_contents,
+                                                                     tuple) else comment_contents,  # 评论内容
+                    id=comment_id,  # 评论id
                     user_id=user_id,  # 用户id
                     user_name="".join(user_name) if isinstance(user_name, tuple) else user_name,  # 用户名
                     weibo_id=weibo_id,  # 原微博id
                     type="comment_type",
-                    comment_like=comment_like,
+                    like=comment_like,
                     key_user_list=key_user_list,
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
                 self.save_one_data_to_es(resp_dada, comment_id)
-                user_url_list = self.parse_user_info_url([user_id])
-                user_data = self.get_user_info(user_url_list[0])
-                self.get_profile_user_info(user_data)
+                # user_url_list = self.parse_user_info_url([user_id])
+                # user_data = self.get_user_info(user_url_list[0])
+                # self.get_profile_user_info(user_data)
         except Exception as e:
             logger.exception(e)
             raise e
@@ -615,22 +580,22 @@ class WeiBoMonitorSpider(object):
                 except Exception as e:
                     pass
                 resp_dada = dict(
-                    repost_time=str_to_format_time(repost_time),  # 转发时间
+                    time=str_to_format_time(repost_time),  # 转发时间
                     platform=platform,  # 平台
-                    repost_contents="".join(repost_contents) if isinstance(repost_contents,
-                                                                           tuple) else repost_contents,  # 转发内容
+                    contents="".join(repost_contents) if isinstance(repost_contents,
+                                                                    tuple) else repost_contents,  # 转发内容
                     user_id=user_id,  # 用户id
                     user_name="".join(user_name) if isinstance(user_name, tuple) else user_name,  # 用户名
                     weibo_id=weibo_id,  # 原微博id
                     type="repost_type",
-                    repost_like=repost_like,
+                    like=repost_like,
                     key_user_list=key_user_list,
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")
                 )
                 self.save_one_data_to_es(resp_dada, user_id)
-                user_url_list = self.parse_user_info_url([user_id])
-                user_data = self.get_user_info(user_url_list[0])
-                self.get_profile_user_info(user_data)
+                # user_url_list = self.parse_user_info_url([user_id])
+                # user_data = self.get_user_info(user_url_list[0])
+                # self.get_profile_user_info(user_data)
         except Exception as e:
             logger.exception(e)
             raise e
@@ -669,7 +634,7 @@ class WeiBoMonitorSpider(object):
                 user_name=user_name,
                 verified=verified if verified else "common",  # 大v
                 verified_reason=verified_reason,  # 认证信息
-                tags=tags,  # 认证信息
+                tags=tags,  # 标签
                 weibo_count=statuses_count,  # 微博数
                 type="user_type"
             )
@@ -759,12 +724,167 @@ def get_handler(*args, **kwargs):
     return WeiBoMonitorSpider(*args, **kwargs)
 
 
+def user_run():
+    dic_list = [
+        {
+            "weibo_index": "weibo_tian_jin_ri_bao",
+            "weibo_user_id": "3546332963",
+            "name": "天津日报"
+        },
+        {
+            "weibo_index": "weibo_ren_min_ri_bao",
+            "weibo_user_id": "2803301701",
+            "name": "人民日报"
+        },
+        {
+            "weibo_index": "weibo_jing_ji_ri_bao",
+            "weibo_user_id": "3037284894",
+            "name": "经济日报"
+        },
+        {
+            "weibo_index": "weibo_guang_ming_ri_bao",
+            "weibo_user_id": "1402977920",
+            "name": "光明日报"
+        },
+        {
+            "weibo_index": "weibo_jin_wan_bao",
+            "weibo_user_id": "1960785875",
+            "name": "今晚报"
+        },
+        {
+            "weibo_index": "weibo_zhong_guo_qing_nian_bao",
+            "weibo_user_id": "1726918143",
+            "name": "中国青年报"
+        },
+        {
+            "weibo_index": "weibo_xin_hua_wang",
+            "weibo_user_id": "2810373291",
+            "name": "新华网"
+        },
+        {
+            "weibo_index": "weibo_xin_hua_mei_ri_dian_xun",
+            "weibo_user_id": "1050395697",
+            "name": "新华每日电讯"
+        },
+        {
+            "weibo_index": "weibo_ren_min_wang",
+            "weibo_user_id": "2286908003",
+            "name": "人民网"
+        },
+        {
+            "weibo_index": "weibo_yang_shi_wang",
+            "weibo_user_id": "3266943013",
+            "name": "央视网"
+        },
+        {
+            "weibo_index": "weibo_yang_guang_wang",
+            "weibo_user_id": "1683472727",
+            "name": "央广网"
+        },
+        {
+            "weibo_index": "weibo_zhong_guo_xin_wen_wang",
+            "weibo_user_id": "1784473157",
+            "name": "中国新闻网"
+        },
+        {
+            "weibo_index": "weibo_zhong_guo_qing_nian_wang",
+            "weibo_user_id": "2748597475",
+            "name": "中国青年网"
+        },
+        {
+            "weibo_index": "weibo_xin_jing_bao",
+            "weibo_user_id": "1644114654",
+            "name": "新京报"
+        },
+        {
+            "weibo_index": "weibo_bei_jing_qing_nian_bao",
+            "weibo_user_id": "1749990115",
+            "name": "北京青年报"
+        },
+        {
+            "weibo_index": "weibo_zhong_guo_jing_ying_bao",
+            "weibo_user_id": "1650111241",
+            "name": "中国经营报"
+        },
+        {
+            "weibo_index": "weibo_peng_pai_xin_wen",
+            "weibo_user_id": "5044281310",
+            "name": "澎湃新闻"
+        },
+        {
+            "weibo_index": "weibo_cai_xin_wang",
+            "weibo_user_id": "1663937380",
+            "name": "财新网"
+        },
+        {
+            "weibo_index": "weibo_chang_an_jie_zhi_shi",
+            "weibo_user_id": "1697601814",
+            "name": "长安街知事"
+        },
+        {
+            "weibo_index": "weibo_tuan_jie_hu_can_kao",
+            "weibo_user_id": "5237400929",
+            "name": "团结湖参考"
+        },
+        {
+            "weibo_index": "weibo_jie_mian_xin_wen",
+            "weibo_user_id": "5182171545",
+            "name": "界面新闻"
+        },
+        {
+            "weibo_index": "weibo_feng_mian_xin_wen",
+            "weibo_user_id": "1496814565",
+            "name": "封面新闻"
+        },
+        {
+            "weibo_index": "weibo_nan_fang_zhou_mo",
+            "weibo_user_id": "1639498782",
+            "name": "南方周末"
+        },
+        {
+            "weibo_index": "weibo_nan_fang_du_shi_bao",
+            "weibo_user_id": "1644489953",
+            "name": "南方都市报"
+        },
+        {
+            "weibo_index": "weibo_hong_xing_xin_wen",
+            "weibo_user_id": "6105713761",
+            "name": "红星新闻"
+        },
+        {
+            "weibo_index": "weibo_mei_ri_jing_ji_xin_wen",
+            "weibo_user_id": "1649173367",
+            "name": "每日经济新闻"
+        },
+        {
+            "weibo_index": "weibo_feng_huang_wang",
+            "weibo_user_id": "2615417307",
+            "name": "凤凰网"
+        },
+        {
+            "weibo_index": "weibo_shou_ji_shang_de_xin_lang",
+            "weibo_user_id": "1712686623",
+            "name": "手机上的新浪 (新浪网)"
+        },
+        {
+            "weibo_index": "weibo_sou_hu_yu_le",
+            "weibo_user_id": "1843633441",
+            "name": "搜狐娱乐（搜狐网）"
+        },
+        {
+            "weibo_index": "weibo_zhong_guo_fang_di_chan_bao",
+            "weibo_user_id": "1749627367",
+            "name": "中国房地产报信息"
+        },
+    ]
+    for dic in dic_list:
+        wb = WeiBoMonitorSpider(dic)
+        try:
+            wb.query()
+        except:
+            continue
+        logger.info(" all wei bo user data success ...dic : {}".format(dic))
+
+
 if __name__ == '__main__':
-    dic = {
-        "weibo_index": "weibo_tian_jin_ri_bao_3546332963",
-        # "weibo_user_id": "6218430096",
-        "weibo_user_id": "3546332963",
-        "date": "2019-08-01:2019-08-03"
-    }
-    wb = WeiBoMonitorSpider(dic)
-    wb.query()
+    user_run()

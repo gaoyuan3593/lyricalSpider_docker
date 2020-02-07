@@ -10,7 +10,7 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from datetime import datetime, timedelta
 from service.db.utils.es_mappings import BAIJIAHAO_DETAIL_MAPPING
 
@@ -29,7 +29,7 @@ class BaiJiaHaoSpider(object):
         self.params = params
         self.es_index = self.params.get("baijiahao_index")
         self.requester = Requester(timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def filter_keyword(self, id, _type):
         try:
@@ -65,6 +65,7 @@ class BaiJiaHaoSpider(object):
         acticle_url_list, acticle_detail_list = [], []
         keyword = self.params.get("q")
         keyword_dic = self.parse_url_kewword(keyword)
+        self.es.create_index(self.es_index, _index_mapping)
         data = self.get_begin_page_url(keyword_dic)
         acticle_url_list.extend(data)
         for url_dic in acticle_url_list:
@@ -74,19 +75,12 @@ class BaiJiaHaoSpider(object):
                     acticle_detail_list.extend(acticle_data)
             except:
                 continue
-        del acticle_url_list
         if not acticle_detail_list:
             return dict(
                 status=1,
                 index=None,
                 message="百家号暂无数据"
             )
-        self.es.create_index(self.es_index, _index_mapping)
-        # pool = threadpool.ThreadPool(5)
-        # tasks = threadpool.makeRequests(self.parse_baijiahao_article_detail, acticle_detail_list)
-        # for task in tasks:
-        #     pool.putRequest(task)
-        # pool.wait()
         for data in acticle_detail_list:
             self.parse_baijiahao_article_detail(data)
 
@@ -309,16 +303,16 @@ class BaiJiaHaoSpider(object):
                 title=title,
                 author=author,
                 introduction=introduction,
-                article_date=article_date,
-                avatar_img=avatar_img,
+                time=article_date,
+                avatar_img=avatar_img,  # 头像
                 b_keyword=resp.get("keyword"),
-                article_text=article_text,
-                article_id=article_id,
+                contents=article_text,
+                id=article_id,
                 type="detail_type",
-                pics=pics,
+                is_pics=pics,
                 user_id=user_id,
-                img_url=img_url,
-                article_url=resp.get("acticle_url"),  # 文章链接
+                img_url_list=img_url,
+                link=resp.get("acticle_url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             self.save_one_data_to_es(data, article_id)
@@ -363,7 +357,7 @@ if __name__ == '__main__':
     keyword_list = ["高校", "教师", "学生", "中小学", "幼儿园", "录取", "录取通知书", "大学", "中学", "小学", "暑假", "补习班", "托管班", "老师"]
     for keyword in keyword_list:
         dic = {
-            "baijiahao_index": "baijiahao_test",
+            "baijiahao_index": "baijiahao_keyword_details",
             "q": keyword,
             "date": "2019-07-01:2019-07-31"
         }

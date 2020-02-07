@@ -1,14 +1,14 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 from service import logger
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, ALL_NEWS_DETAILS
+from service.db.utils.elasticsearch_utils import es_client
 
 
 class SaveDataToEs(object):
 
     @classmethod
     def create_client(cls):
-        return ElasticsearchClient()
+        return es_client
 
     @classmethod
     def filter_keyword(cls, es, index, _type, id):
@@ -34,3 +34,8 @@ class SaveDataToEs(object):
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e
+
+    @classmethod
+    def create_index(cls, index_name, index_mappings):
+        es = cls.create_client()
+        return es.create_index(index_name, index_mappings)

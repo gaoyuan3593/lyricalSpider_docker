@@ -21,22 +21,14 @@ conf = get_by_name_yaml('mongodb')
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-MAX_INSTANCE_NUM = 100
-TIME = 180
+MAX_INSTANCE_NUM = 200
+TIME = 120
 TZ = pytz.timezone('America/New_York')
 
-client = MongoClient(
-    host='mongodb://%s:%s@%s' % (conf["user"], conf["password"], conf["host"]),
-    port=conf["port"],
-)
 
-# jobstores = {
-#     'mongo': MongoDBJobStore(client=client),
-#     'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
-# }
 jobstores = {
-    'mongo': MongoDBJobStore(collection='jobs', database='new_media', client=client),
-    'default': MemoryJobStore()
+    'mongo': MongoDBJobStore(),
+    'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
 }
 
 executors = {
@@ -62,21 +54,20 @@ class TaskApscheduler(object):
     timezone (datetime.tzinfo|str) – time zone to use for the date/time calculations
     """
 
-    def __init__(self, func=None, job_id="my_job_id"):
-        self.job_id = job_id
+    def __init__(self, func, job_id="my_job_id"):
         self.func = func
+        self.job_id = job_id
 
     def add_job(self):
         logger.info("Time : {}".format(datetime.today().strftime('%Y-%m-%d %H:%M:%S')))
-        scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors,
-                                        job_defaults=job_defaults)
+        scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
 
-        # scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
-        #                   next_run_time=datetime.now(TZ) + timedelta(seconds=20)
-        #                   )
         scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
-                          next_run_time=datetime.now() + timedelta(seconds=20)
+                          next_run_time=datetime.now(TZ) + timedelta(seconds=5)
                           )
+        # scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
+        #                   next_run_time=datetime.now() + timedelta(seconds=10)
+        #                   )
         scheduler.start()
 
 

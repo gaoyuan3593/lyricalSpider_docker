@@ -14,10 +14,8 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.cookie_utils import dict_to_cookie_jar
-
-from service.db.utils.elasticsearch_utils import ElasticsearchClient, BAIDUTIEBA
-from datetime import datetime, timedelta
+from datetime import datetime
+from service.db.utils.elasticsearch_utils import es_client, BAIDUTIEBA
 
 
 class TiebaSpider(object):
@@ -25,7 +23,7 @@ class TiebaSpider(object):
 
     def __init__(self):
         self.requester = Requester(timeout=20)
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def filter_keyword(self, id, _type):
         try:
@@ -212,16 +210,17 @@ class TiebaSpider(object):
                 tiezi_url = "https://tieba.baidu.com{}".format(title_obj.attrs.get("href"))
                 resp_data = dict(
                     title=title,  # 贴子标题
-                    content=content,  # 贴子内容，也就是楼主发布的内容
+                    contents=content,  # 贴子内容，也就是楼主发布的内容
                     tieba=tieba,  # 所属贴吧
                     author=author,  # 作者
-                    tiezi_time=tiezi_time,  # 发布时间
-                    pics=pics,  # 是否有图片
-                    imgs=imgs,  # 图片链接
+                    time=tiezi_time,  # 发布时间
+                    is_pics=pics,  # 是否有图片
+                    img_url_list=imgs,  # 图片链接
                     b_keywold=keyword,  # 关键字
-                    type="detail",
-                    tid=tid,  # 贴子id
-                    fid=fid  # 作者id
+                    type="detail_type",
+                    id=tid,  # 贴子id
+                    user_id=fid,  # 作者id
+                    crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
                 self.save_one_data_to_es(resp_data, tid)
                 if author_url:
@@ -399,18 +398,19 @@ class TiebaSpider(object):
                         follow_count = re.findall(r"\d+", follow)[0]
             profile_image_url = resp_obj.find("a", attrs={"class": "userinfo_head"}).next.attrs.get("src")
             data = dict(
-                user=user,  # 用户名
+                user_name=user,  # 用户名
                 nick_name=nick_name,  # 昵称
                 gender=gender,  # 性别
                 tieba_age=tieba_age,  # 吧龄
-                tiezi_num=tiezi_num,  # 发帖数
-                vip_days=vip_days,  # vip天数
+                statuses_count=tiezi_num,  # 发帖数
+                vip_day=vip_days,  # vip天数
                 is_vip=is_vip,  # 是否是会员
-                author_id=author_id,  # 用户id,
+                id=author_id,  # 用户id,
                 follow_count=follow_count,  # 关注数
                 fan_count=fan_count,  # 粉丝数
                 profile_image_url=profile_image_url,  # 头像url
-                type="user"
+                type="user_type",
+                crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             self.save_one_data_to_es(data, author_id)
         except Exception as e:
@@ -419,7 +419,7 @@ class TiebaSpider(object):
 
     def parse_replay_detail(self, resp):
         """
-        解析作者详情
+        解析下面回复详情
         :return: list
         """
         if not resp:
@@ -452,23 +452,24 @@ class TiebaSpider(object):
                 content_info = data_info.get("content")
                 replay_id = content_info.get("post_id")
                 data = dict(
-                    user=author_info.get("user_name"),  # 用户名
-                    date=content_info.get("date"),  # 评论时间
-                    replay_text=replay_text,  # 评论内容
+                    user_name=author_info.get("user_name"),  # 用户名
+                    time=content_info.get("date"),  # 评论时间
+                    contents=replay_text,  # 评论内容
                     nick_name=author_info.get("user_nickname"),  # 昵称
                     level=author_info.get("level_id"),  # 在本贴吧的等级
-                    level_name=author_info.get("level_name"),  # 等级头衔说明
+                    level_explain=author_info.get("level_name"),  # 等级头衔说明
                     cur_score=author_info.get("cur_score"),  # 经验值
                     name_u=author_info.get("name_u"),  # url编码的昵称
-                    author_id=author_info.get("user_id"),  # 用户id,
-                    replay_id=replay_id,  # 回复id
+                    user_id=author_info.get("user_id"),  # 用户id,
+                    id=replay_id,  # 评论id
                     source=content_info.get("open_id"),  # 来源
                     platform=content_info.get("open_type"),  # 平台
-                    replay_no=content_info.get("post_no"),  # 评论楼数
+                    comment_no=content_info.get("post_no"),  # 评论楼数
                     comment_num=content_info.get("comment_num"),  # 评论数
-                    type="comment",
-                    pics=pics,  # 是否有图片
-                    img_url=img_url  # 图片url
+                    type="comment_type",
+                    is_pics=pics,  # 是否有图片
+                    img_url_list=img_url,  # 图片url
+                    crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
 
                 )
                 self.save_one_data_to_es(data, replay_id)

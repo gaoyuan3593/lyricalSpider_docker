@@ -27,7 +27,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
 from service.micro.utils.math_utils import wechat_date_next, to_json
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
 from service.micro.utils.threading_ import WorkerThread
 
@@ -49,7 +49,7 @@ class SouGouMonitorSpider(object):
         self.requester = Requester(cookie=dict_to_cookie_jar(self.cookies), timeout=20)
         self.es_index = self.params.get("wechat_index")
         self.account = self.params.get("account")
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'wechat')

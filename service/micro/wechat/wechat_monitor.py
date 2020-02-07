@@ -15,11 +15,8 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
-from service.micro.utils.math_utils import wechat_date_next, to_json
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
-from service.micro.utils.threading_ import WorkerThread
 
 _index_mapping = {
     "detail_type":
@@ -35,12 +32,12 @@ class WeChatMonitor(object):
     def __init__(self, params=None):
         self.params = params
         self.ua = ua()
-        self.token = "1276615823"
-        self.cookies = "noticeLoginFlag=1; pgv_pvi=8486419456; RK=9VhZ2EuYZA; ptcz=4f5926e609851e8bf429db67fab4c901d6f1e053fff4213d90cccd35cf3e28e3; pgv_pvid=4358251154; pgv_si=s942664704; _qpsvr_localtk=0.012199419998826455; rewardsn=; wxtokenkey=777; tvfe_boss_uuid=8aa17681b9c281aa; eas_sid=d1R5S6K0S1x297c4s2g0G2z6Q6; pgv_info=ssid=s8205962624&pgvReferrer=; ied_qq=o0071116455; LW_uid=F1x576A0c7c3m154t2p4B4C0c3; LW_sid=F1e5Z6r0d733u1Q4e2Y7A3r1k1; 3g_guest_id=-8586409840601989120; verifysession=h013ce1be9aa70c7c42ffe6fa827baccc469c99a1e5cee7f1b7e7f864ef75d56fcb7a53fd05655f77a5; pac_uid=1_71116455; ua_id=tCIEMkNuSnOsna94AAAAAIb1Wk1QHLaH_tTG3AvQKII=; cert=j0XIDWCuFFgFV_4EigzTToynkp_tN_Ho; master_key=gtkDRZU8OdjzADYar4jTyljwrb7NuSzeOpGMfyjuGDw=; sig=h01a2fa9298e3bd0f1ce5507b17834c3aa8393b0be374f40b55006599fdbdced45ca435da2b8fa306a3; _ga=GA1.2.804848349.1568010623; mm_lang=zh_CN; o_cookie=71116455; openid2ticket_o9EnQ1MiSUMOFekBXRXNhaGX65r0=2iI0rRspBsh1CaZT29lWb9J85WJ208hM/l9CykpcvKg=; ptisp=edu; uin=o0071116455; rv2=80B63CE6DD93B530766C94B6A9C53049CD820F019CF13818C2; property20=EFE5C5438CBB68C1DCD1F29A454BC41EA881C8A4E95FF9C3D2E2E0EB6144831406250EED278F48C7; qqmusic_uin=0071116455; qqmusic_key=@rygwyBAP0; qqmusic_fromtag=6; skey=@4AlbPdXvJ; noticeLoginFlag=1; uuid=c07a0e75abd4b740bdb428555eab6b9d; data_bizuin=3570420212; bizuin=3570420212; data_ticket=xIptiHGnRVCqczxq+8cSBWIqHy6PFVyLkmD8nyBu9eCwuEHgY5bQpCY/09XoYFef; slave_sid=aURHaVBjZGs0VE1IM2xMX3pTTUMxQWtER3RrUkJPS2U4TEFoOV8xR01KUklhbVo5bW5hY2lBeTdwQ3dXWEJ4WnlLamtiOHZuUVJzRFRwX2djSkJUUkZIYVhUQm02aXNuS2pJX1NVaTJaR1JRODBoQmpjVHowNWozaXJWYTc0ZG85S0tkRElQZHRmVmRQVklG; slave_user=gh_34143ab2721d; xid=25a9d96eb75c217aabb2c35713705066"
+        self.token = "477715165"
+        self.cookies = "noticeLoginFlag=1; remember_acct=1601950577%40qq.com; ua_id=agMPRAvAG8aPJ8dnAAAAAPFiplZP1irqMdiJMqQJkVw=; pgv_pvi=8984983552; pgv_si=s1645932544; cert=n1UcbUh6kqCG70vKDn5AwwWr4EEWr4sX; mm_lang=zh_CN; openid2ticket_o9EnQ1MiSUMOFekBXRXNhaGX65r0=HCC2I4zMlVvA3AQ9QID4SSwKYyHmcjxXE1VqJsdROdw=; uuid=a96b8880f3110781e17ae269cd5f5c69; data_bizuin=3570420212; bizuin=3570420212; data_ticket=StTCIQc29c556k7xGPKNHMA7hxDfdGUe8U9dRZCuYSFiNXTNFAgRvZ8rWhsz4ciu; slave_sid=cnQ3Q29TUU15bWFadHBSYmZ0ZzA4V2NobnZrXzU5TWE4c0hxRHdVZ0NhZkJ1X1NuRWZfS1RrZ0V0Y2FkejcyTUVoNEU2dEZseXNhOFdYb3ZFemhNd2JUbDJpU0x6NXIyUlQxM3hPY05oSGEzM0x6M056cGxqR09SWkNlYlVTRkl1V2xyMnlvdDBjZEh4MU55; slave_user=gh_34143ab2721d; xid=00cd4264c8122e7f8cb2a1f4273fe7e9"
         self.requester = Requester(timeout=20)
         self.es_index = self.params.get("wechat_index")
         self.account = self.params.get("account")
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def retrun_md5(self, s):
         m = hashlib.md5()
@@ -48,12 +45,13 @@ class WeChatMonitor(object):
         return m.hexdigest()
 
     def random_num(self):
-        return random.uniform(15, 20)
+        return random.uniform(13, 25)
 
     def filter_keyword(self, id, _type):
         try:
             result = self.es.get(self.es_index, _type, id)
             if result.get("found"):
+                # self.es.update(self.es_index, _type, id, data)
                 return True
             return False
         except Exception as e:
@@ -209,8 +207,10 @@ class WeChatMonitor(object):
                 raise HttpInternalServerError
             elif "观看" in response.text or "发布到看一看" in response.text:
                 return
+            elif resp_obj.find("div", attrs={"id": "img_list"}):
+                return
             else:
-                logger.error('get weibo detail failed !')
+                logger.error('get wechat detail failed !')
                 self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
@@ -224,12 +224,11 @@ class WeChatMonitor(object):
         """
         resp = self.get_weixin_page_data(fake_id=fake_id)
         count = resp.get("app_msg_cnt")
-        num = count // 5
-        page_num = 401 if num >= 400 else num
-        # page_num = 200
+        num = count // 10
+        # page_num = 401 if num >= 400 else num
         url_list = []
         begin = 0
-        for i in range(page_num):
+        for i in range(num):
             url = "https://mp.weixin.qq.com/cgi-bin/appmsg?token={}&lang=zh_CN&f=json&ajax=1&action=list_ex&begin={}&count=5&query=&fakeid={}&type=9".format(
                 self.token, begin, fake_id)
             url_list.append(url)
@@ -252,7 +251,7 @@ class WeChatMonitor(object):
                 aid = self.retrun_md5(str_id)
                 if self.filter_keyword(aid, "detail_type"):
                     print("已存在 title :{}".format(title))
-                    return
+                    return data_list
                 url = data.get("link")
                 cover = data.get("cover")
                 article_date = datetime.strptime(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(create_time)),
@@ -287,6 +286,8 @@ class WeChatMonitor(object):
                     resp_obj = BeautifulSoup(_data.get("data"), 'html.parser')
                 except Exception as e:
                     return
+            if resp_obj.find_all("iframe"):
+                [s.extract() for s in resp_obj("iframe")]
             article_text = resp_obj.find("div", attrs={"id": "js_content"}).text.strip()  # 文章内容
             wechat_num = resp_obj.find_all("span", attrs={"class": "profile_meta_value"})[0].text.strip()  # 微信号
             profile_meta = resp_obj.find_all("span", attrs={"class": "profile_meta_value"})[1].text.strip()  # 功能介绍
@@ -298,16 +299,16 @@ class WeChatMonitor(object):
             data = dict(
                 title=resp.get("title"),
                 author=self.account,
-                article_date=resp.get("article_date"),
-                article_text=article_text,
-                article_id=article_id,
+                time=resp.get("article_date"),
+                contents=article_text,
+                id=article_id,
                 type="detail_type",
-                pics=pics,
-                img_url=img_url,
+                is_pics=pics,
+                img_url_list=img_url,
                 wechat_num=wechat_num,
                 profile_meta=profile_meta,
                 is_share=is_share,  # 是否是分享
-                article_url=resp.get("url"),  # 文章链接
+                link=resp.get("url"),  # 文章链接
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
             self.save_one_data_to_es(data, article_id)
@@ -317,39 +318,8 @@ class WeChatMonitor(object):
 
 
 if __name__ == "__main__":
-    lis = [
-        {
-            "wechat_index": "wechat_tian_jin_ri_bao_3546332963",
-            "account": "天津日报",
-            "weibo_user_id": "3546332963",
-        },
-        {
-            "wechat_index": "wechat_ren_min_ri_bao_2803301701",
-            "account": "人民日报",
-            "weibo_user_id": "2803301701",
-        },
-        {
-            "wechat_index": "wechat_xin_hua_wang_2810373291",
-            "account": "新华网",
-            "weibo_user_id": "2810373291",
-        },
-        {
-            "wechat_index": "wechat_zhong_guo_wang_3164957712",
-            "account": "中国网",
-            "weibo_user_id": "3164957712",
-        },
-        {
-            "wechat_index": "wechat_zhong_guo_ri_bao_wang_2127460165",
-            "account": "中国日报网",
-            "weibo_user_id": "2127460165",
-        },
-        {
-            "wechat_index": "wechat_zhong_guo_qing_nian_wang_2748597475",
-            "account": "中国青年网",
-            "weibo_user_id": "2748597475",
-        },
-    ]
+    from service.micro.wechat import ALL_WECHAT
 
-    for dic in lis:
+    for dic in ALL_WECHAT:
         weichat = WeChatMonitor(dic)
         weichat.query()

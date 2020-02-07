@@ -87,8 +87,7 @@ class Requester(object):
 
         self.next_http_timeout = max(self.timeout or 1, self.HTTP_TIMEOUT * self.current_timeout_rate)
 
-    def __init__(self, proxy_category='default', cookie=None, timeout=None, verify=False, proxy_tunnel=None,
-                 seq_no=None):
+    def __init__(self, proxy_category='default', cookie=None, timeout=None, verify=False, proxy_tunnel=None,):
         self.s = requests.session()
         self.verify = verify
 
@@ -201,7 +200,6 @@ class Requester(object):
         elif status_code in [400, 401, 402, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414,
                              415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 431, 444,
                              449, 450, 451, 499, 500, 503, 507, 510, 511]:
-            self.use_proxy()
             raise ServiceUnavailableError()
         elif status_code in [408, 504]:
             self.use_proxy()

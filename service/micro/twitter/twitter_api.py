@@ -16,7 +16,7 @@ from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar, cookie_jar_to_dict
 from service.micro.utils.math_utils import str_to_format_time
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from datetime import datetime
 from service.micro.utils.threading_ import WorkerThread
 
@@ -28,7 +28,7 @@ class TwitterSpider(object):
         self.keyword = keyword
         self.requester = Requester(timeout=15)
         self.es_name = "twitter_{}".format(self.keyword).lower()
-        self.es = ElasticsearchClient()
+        self.es = es_client
 
     def random_num(self):
         return random.uniform(0.1, 1)

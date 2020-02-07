@@ -14,7 +14,15 @@ from service.micro.news.utils.proxies_util import get_proxies
 from service.micro.utils import ua
 from service.micro.utils.math_utils import china_str_to_format_time
 from service.micro.news import CHINA, NEWS_ES_TYPE
+from service.db.utils.elasticsearch_utils import ALL_NEWS_DETAILS, NEWS_DETAIL_MAPPING
 from service.micro.news.utils.search_es import SaveDataToEs
+
+_index_mapping = {
+    NEWS_ES_TYPE.china:
+        {
+            "properties": NEWS_DETAIL_MAPPING
+        }
+}
 
 
 class ChinaSpider(object):
@@ -23,7 +31,7 @@ class ChinaSpider(object):
     def __init__(self, data):
         self.domain = data.get("domain")
         self.s = requests.session()
-        self.es_index = data.get("website_index")
+        SaveDataToEs.create_index(ALL_NEWS_DETAILS, _index_mapping)
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
@@ -144,17 +152,16 @@ class ChinaSpider(object):
                     _editor = _editor[0].split("|")[0] if _editor else ""
             data = dict(
                 title=_title,  # 标题
-                article_id=article_id,  # 文章id
-                date=_publish_time,  # 发布时间
+                id=article_id,  # 文章id
+                time=_publish_time,  # 发布时间
                 source=_source,  # 来源
-                editor=_editor,  # 责任编辑
-                news_url=news_url,  # url连接
-                new_type=NEWS_ES_TYPE.china,
-                type="detail_type",
+                author=_editor,  # 责任编辑
+                link=news_url,  # url连接
+                type=NEWS_ES_TYPE.china,
                 contents=_content,  # 内容
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            SaveDataToEs.save_one_data_to_es(self.es_index, data, article_id)
+            SaveDataToEs.save_one_data_to_es(ALL_NEWS_DETAILS, data, article_id)
         except Exception as e:
             logger.exception(e)
 

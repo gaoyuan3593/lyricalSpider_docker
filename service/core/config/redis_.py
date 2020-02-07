@@ -30,9 +30,13 @@ EVENT_REDIS_URL = '{}/2'.format(EVENT_HOST)
 # 快代理
 KUAI_PROXY_REDIS_URL = '{}/3'.format(KUAI_PROXY_HOST)
 
+# ai评论员
+AI_COMMENT_REDIS_URL = '{}/4'.format(KUAI_PROXY_HOST)
+
 weibo_redis_cli = redis_cli(WEIBO_PAGE_REDIS_URL)
 event_redis_cli = redis_cli(EVENT_REDIS_URL)
 kuai_proxy_redis_cli = redis_cli(KUAI_PROXY_REDIS_URL)
+ai_comment_redis_cli = redis_cli(AI_COMMENT_REDIS_URL)
 
 if __name__ == '__main__':
     import redis

@@ -1,9 +1,8 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 import json
-import multiprocessing
 from service import logger
-from service.db.utils.elasticsearch_utils import ElasticsearchClient
+from service.db.utils.elasticsearch_utils import es_client
 from service.micro.utils.apscheduler_ import TaskApscheduler
 from service.utils.seq_no import generate_seq_no
 from service.micro.keyword.utils.utils import remove_job, resume_job, pause_job
@@ -97,8 +96,8 @@ class AddMonitorAccount(object):
     def get_monitor_result(self):
         logger.info("Begin get all data detail ...")
         try:
-            #wechat = self.get_wechat_data(self.now_data)
-            website = self.get_website_data(self.now_data)
+            # wechat = self.get_wechat_data(self.now_data)
+            # website = self.get_website_data(self.now_data)
             weibo = self.get_weibo_account_data(self.now_data)
             logger.info("task id : {} is task run over.....".format(self.task_id or self.seq_no))
         except Exception as e:
@@ -179,8 +178,7 @@ class AddMonitorAccount(object):
                         "properties": NEWS_DETAIL_MAPPING
                     },
             }
-            es = ElasticsearchClient()
-            es.create_index(data.get("website_index"), _index_mapping)
+            es_client.create_index(data.get("website_index"), _index_mapping)
             handler = get_module_from_service("news", ds.handler)
             data.update(domain=self.domain)
             website = handler.get_handler(data)

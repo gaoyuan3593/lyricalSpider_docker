@@ -13,4 +13,4 @@ MONGODB_PORT = conf["port"]
 MONGODB_CLIENT = 'mongodb://%s:%s@%s' % (MONGODB_USR, MONGODB_PWD, MONGODB_HOST)
 
 
-connection = MongoClient(MONGODB_CLIENT, MONGODB_PORT)
+connection = MongoClient("127.0.0.1", MONGODB_PORT)

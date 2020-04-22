@@ -12,6 +12,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.db.utils.elasticsearch_utils import ALL_PAPER_DETAILS, PAPER_ALL_MAPPING
 from service.micro.news.utils.search_es import SaveDataToEs
+from service.micro.news.utils.proxies_util import get_proxies
 
 INDEX_TYPE = "paper_china_qing_nian_bao"
 
@@ -31,6 +32,7 @@ class ChinaQingNianBaoSpider(object):
         self.headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3",
             "Host": "zqb.cyol.com",
+            "Accept-Language": "zh-CN,zh;q=0.9",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36"
         }
         SaveDataToEs.create_index(ALL_PAPER_DETAILS, _index_mapping)
@@ -38,6 +40,10 @@ class ChinaQingNianBaoSpider(object):
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
+
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_begin_url(self):
         year = datetime.today().year
         _month = datetime.today().month
@@ -65,11 +71,12 @@ class ChinaQingNianBaoSpider(object):
                 return url_list
         except Exception as e:
             logger.exception(e)
-            raise e
+            self.use_proxies()
+            raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self, url_dic):
-        logger.info('Processing get ren min ri bao network search list!')
+        logger.info('Processing get zhong guo qing nian bao network search list!')
         data_list = []
         try:
             url = url_dic.get("url")

@@ -52,3 +52,4 @@ def get_handler(*args, **kwargs):
 if __name__ == '__main__':
     data = {"status": "1", "relative_word": "dasfasdf,", }
     s = MonitorPaper(data)
+    s.query()

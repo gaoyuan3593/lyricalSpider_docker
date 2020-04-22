@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
+from service.micro.news.utils.proxies_util import get_proxies
 from service.db.utils.elasticsearch_utils import ALL_PAPER_DETAILS, PAPER_ALL_MAPPING
 from service.micro.news.utils.search_es import SaveDataToEs
 
@@ -34,10 +35,15 @@ class TJRiBaoSpider(object):
             "Host": "epaper.tianjinwe.com",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36"
         }
+        SaveDataToEs.create_index(ALL_PAPER_DETAILS, _index_mapping)
 
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
+
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_begin_url(self):
         year = datetime.today().year
         _month = datetime.today().month
@@ -46,6 +52,8 @@ class TJRiBaoSpider(object):
         day = str(_day) if len(str(_day)) >= 2 else "0{}".format(_day)
         url = "http://epaper.tianjinwe.com/tjrb/html/{}-{}/{}/node_1.htm?v=1".format(year, month, day)
         try:
+            logger.info(" get tian jin ri bao begin")
+            self.use_proxies()
             resp = self.s.get(url, headers=self.headers, verify=False)
             resp.encoding = "utf-8"
             if resp.status_code == 200 and "天津日报数字报" in resp.text:
@@ -65,11 +73,12 @@ class TJRiBaoSpider(object):
                 return url_list
         except Exception as e:
             logger.exception(e)
-            raise e
+            self.use_proxies()
+            raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self, url_dic):
-        logger.info('Processing get jin wan bao network search list!')
+        logger.info('Processing get tian jin ri bao network search list!')
         data_list = []
         try:
             url = url_dic.get("url")
@@ -100,7 +109,7 @@ class TJRiBaoSpider(object):
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_detail(self, data):
-        logger.info('Processing get jin wan bao details !!!')
+        logger.info('Processing get tian jin bao details !!!')
         url = data.get("url")
         try:
             response = self.s.get(url, headers=self.headers, verify=False)
@@ -118,6 +127,7 @@ class TJRiBaoSpider(object):
                 raise InvalidResponseError
         except Exception as e:
             time.sleep(2)
+            self.use_proxies()
             raise InvalidResponseError
 
     def parse_news_detail(self, _data):

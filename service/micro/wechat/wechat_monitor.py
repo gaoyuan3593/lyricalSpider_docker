@@ -15,7 +15,7 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
-from service.db.utils.elasticsearch_utils import es_client
+from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from service.db.utils.es_mappings import WECHAT_DETAIL_MAPPING
 
 _index_mapping = {
@@ -32,12 +32,13 @@ class WeChatMonitor(object):
     def __init__(self, params=None):
         self.params = params
         self.ua = ua()
-        self.token = "477715165"
-        self.cookies = "noticeLoginFlag=1; remember_acct=1601950577%40qq.com; ua_id=agMPRAvAG8aPJ8dnAAAAAPFiplZP1irqMdiJMqQJkVw=; pgv_pvi=8984983552; pgv_si=s1645932544; cert=n1UcbUh6kqCG70vKDn5AwwWr4EEWr4sX; mm_lang=zh_CN; openid2ticket_o9EnQ1MiSUMOFekBXRXNhaGX65r0=HCC2I4zMlVvA3AQ9QID4SSwKYyHmcjxXE1VqJsdROdw=; uuid=a96b8880f3110781e17ae269cd5f5c69; data_bizuin=3570420212; bizuin=3570420212; data_ticket=StTCIQc29c556k7xGPKNHMA7hxDfdGUe8U9dRZCuYSFiNXTNFAgRvZ8rWhsz4ciu; slave_sid=cnQ3Q29TUU15bWFadHBSYmZ0ZzA4V2NobnZrXzU5TWE4c0hxRHdVZ0NhZkJ1X1NuRWZfS1RrZ0V0Y2FkejcyTUVoNEU2dEZseXNhOFdYb3ZFemhNd2JUbDJpU0x6NXIyUlQxM3hPY05oSGEzM0x6M056cGxqR09SWkNlYlVTRkl1V2xyMnlvdDBjZEh4MU55; slave_user=gh_34143ab2721d; xid=00cd4264c8122e7f8cb2a1f4273fe7e9"
+        self.token = "1255431436"
+        self.cookies = "noticeLoginFlag=1; remember_acct=1601950577%40qq.com; ua_id=agMPRAvAG8aPJ8dnAAAAAPFiplZP1irqMdiJMqQJkVw=; pgv_pvi=8984983552; pgv_si=s1645932544; cert=n1UcbUh6kqCG70vKDn5AwwWr4EEWr4sX; mm_lang=zh_CN; _qpsvr_localtk=0.8973135076599092; RK=BchRjkuzdA; ptcz=a6c4c9d42a1aff9cd94a2da8fb7862c68d56cf54a7dd150866fbf85de1be770b; uin=o0071116455; openid2ticket_o9EnQ1MiSUMOFekBXRXNhaGX65r0=D9QJ+ZIiMmhHB5PhqlnURIRzopN110poEfHc3EExn9g=; skey=@7DCeIpCPV; pgv_pvid=392578576; pgv_info=ssid=s3002772968; rv2=8069E8D35CEDB64819E246E769BE7BB2240CBAD679E32D6670; property20=28D6EFBBB1269D4767FA7B5CC229550A9E505185D63708466888A775C76C0D70B3C7AFBD775AA889; rewardsn=; wxtokenkey=777; uuid=b2fd896e666fa10cd43ef7703ed20724; rand_info=CAESIE7oU4rBYr3DHyhYETDAINKk67mC3Fm3cDk28M/+60e4; slave_bizuin=3570420212; data_bizuin=3570420212; bizuin=3570420212; data_ticket=HamEfgqjl6VOUcpuP0qOB8B4ayw7W6keujqkjy+PLNg47vgrq/XULAUVIO40Ebcd; slave_sid=eTJEbmxlRDFZc1VGbURGQlVoY1RQdU1QSTgxNkpoakxrV0xRSGZ0YnB4N21icmFXMVc2dV9fOGROT2ttV3NUT21PVkdVVEhVbXBndFNkYkVfS1NlcWhaNFVPdGFRN3lWZkVqdjlaZzFZMzFTZVNoVzZORUlLUEQ4eTJXd2c2Wk4wRFlWVUttSVBVQlVGNHg5; slave_user=gh_34143ab2721d; xid=80f6ef3e60fe30d0d89dd37d5d20a611"
         self.requester = Requester(timeout=20)
         self.es_index = self.params.get("wechat_index")
         self.account = self.params.get("account")
         self.es = es_client
+        self.h_es = h_es_client
 
     def retrun_md5(self, s):
         m = hashlib.md5()
@@ -51,7 +52,6 @@ class WeChatMonitor(object):
         try:
             result = self.es.get(self.es_index, _type, id)
             if result.get("found"):
-                # self.es.update(self.es_index, _type, id, data)
                 return True
             return False
         except Exception as e:
@@ -70,6 +70,7 @@ class WeChatMonitor(object):
                 logger.info("{} Data already exists id: {}".format(self.__name__, id))
                 return
             self.es.insert(self.es_index, _type, data, id)
+            self.h_es.insert(self.es_index, _type, data, id)
             logger.info("{} save to es success [ index : {}, data={}]！".format(self.__name__, self.es_index, data))
         except Exception as e:
             logger.exception(e)

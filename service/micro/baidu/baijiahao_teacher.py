@@ -3,7 +3,6 @@
 import random
 import time
 import re
-import threadpool
 from bs4 import BeautifulSoup
 from service.core.utils.http_ import Requester
 from service.exception import retry
@@ -14,20 +13,23 @@ from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from datetime import datetime, timedelta
 from service.db.utils.es_mappings import BAIJIAHAO_DETAIL_MAPPING
 
+INDEX_TYPE = "bai_jia_hao"
 _index_mapping = {
-    "detail_type":
+    INDEX_TYPE:
         {
             "properties": BAIJIAHAO_DETAIL_MAPPING
         },
 }
 
 
-class BaiJiaHaoSpider(object):
-    __name__ = 'bai jia hao'
+class BaiJiaHaoTeacherSpider(object):
+    __name__ = 'bai jia hao teacher'
 
     def __init__(self, params=None):
         self.params = params
-        self.es_index = self.params.get("baijiahao_index")
+        self.es_index = self.params.get("index")
+        self.name_cn = self.params.get("name_cn")
+        self.name_en = self.params.get("name_en")
         self.requester = Requester(timeout=20)
         self.es = es_client
         self.h_es = h_es_client
@@ -49,7 +51,7 @@ class BaiJiaHaoSpider(object):
         :return:
         """
         try:
-            _type = data.get("type")
+            _type = INDEX_TYPE
             if self.filter_keyword(id, _type):
                 logger.info("Data already exists id: {}".format(id))
                 return
@@ -85,7 +87,7 @@ class BaiJiaHaoSpider(object):
                 message="百家号暂无数据"
             )
         for data in acticle_detail_list:
-            self.parse_baijiahao_article_detail(data)
+            self.parse_baijiahao_article_detail(data, keyword)
 
 
         return dict(
@@ -93,33 +95,6 @@ class BaiJiaHaoSpider(object):
             index=self.es_index,
             message="百家号获取成功！"
         )
-
-    def get_weibo_hot_seach(self):
-        logger.info('Processing get weibo hot search list!')
-        url = 'https://s.weibo.com/top/summary?Refer=top_hot'
-        headers = {
-            'User-Agent': ua(),
-            'Connection': 'keep-alive',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
-            'Host': 's.weibo.com'
-        }
-        keyword_url_list = []
-        try:
-            response = self.requester.get(url=url, header_dict=headers)
-            data_obj = BeautifulSoup(response.text, "lxml")
-            data_list = data_obj.find_all("div", attrs={"id": "pl_top_realtimehot"})
-            hot_list = data_list[0].find_all("tr")[1:]
-            for raw in hot_list:
-                keyword = raw.contents[3].contents[1].text
-                url = 'https://www.baidu.com/s?tn=news&rtt=4&bsst=2&cl=2&wd={}'.format(
-                    keyword)
-                keyword_url_list.append(dict(url=url, keyword=keyword))
-            return keyword_url_list
-        except Exception as e:
-            self.requester.use_proxy()
-            raise HttpInternalServerError
 
     def parse_url_kewword(self, keyword):
         return dict(
@@ -270,7 +245,7 @@ class BaiJiaHaoSpider(object):
                 raise HttpInternalServerError
         return data_list
 
-    def parse_baijiahao_article_detail(self, resp):
+    def parse_baijiahao_article_detail(self, resp, keyword):
         """
         解析文章详情
         :return: list
@@ -286,6 +261,8 @@ class BaiJiaHaoSpider(object):
             _time = resp_obj.find("div", attrs={"class": "article-source article-source-bjh"}).contents[1].text  # 发布时间
             article_date = self.format_date(_date, _time)  # 发布时间
             task_date = self.params.get("date")
+            if keyword not in article_text:
+                return
             if not self.parse_crawl_date(article_date, task_date):
                 logger.info("Time exceeds start date data= [ article_date : {}, article_id : {}]".
                             format(article_date, resp.get("article_id")))
@@ -302,6 +279,12 @@ class BaiJiaHaoSpider(object):
                 pics = 1
                 img_url = [soup.attrs.get("src") for soup in img]
             article_id = resp.get("article_id")
+            if self.name_cn:
+                if self.name_cn not in article_text:
+                    return
+            if self.name_en:
+                if self.name_en not in article_text:
+                    return
             data = dict(
                 title=title,
                 author=author,
@@ -311,7 +294,6 @@ class BaiJiaHaoSpider(object):
                 b_keyword=resp.get("keyword"),
                 contents=article_text,
                 id=article_id,
-                type="detail_type",
                 is_pics=pics,
                 user_id=user_id,
                 img_url_list=img_url,
@@ -357,12 +339,12 @@ if __name__ == '__main__':
     acticle_detail_list = []
     user_id_list = []
     acticle_url_list = []
-    keyword_list = ["单玉厚"]#["高校", "教师", "学生", "中小学", "幼儿园", "录取", "录取通知书", "大学", "中学", "小学", "暑假", "补习班", "托管班", "老师"]
+    keyword_list = ["李涛"]
     for keyword in keyword_list:
         dic = {
-            "baijiahao_index": "baijiahao_dan_yu_hou_1582701150",
+            "index": "li_tao",
             "q": keyword,
-            "date": "2020-02-05:2020-02-27"
+            "date": "2018-02-05:2020-02-27"
         }
-        bjh = BaiJiaHaoSpider(dic)
+        bjh = BaiJiaHaoTeacherSpider(dic)
         bjh.query()

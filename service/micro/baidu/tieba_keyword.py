@@ -14,7 +14,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import es_client
+from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from service.db.utils.es_mappings import (TIEBA_DETAIL_MAPPING, TIEBA_COMMENT_MAPPING, TIEBA_USER_MAPPING)
 
 _index_mapping = {
@@ -41,6 +41,7 @@ class TiebaSpider(object):
         self.es_index = self.params.get("tieba_index")
         self.requester = Requester(timeout=20)
         self.es = es_client
+        self.h_es = h_es_client
         self.task_date = self.params.get("date")
 
     def filter_keyword(self, id, _type):
@@ -65,6 +66,7 @@ class TiebaSpider(object):
                 logger.info("Data already exists id: {}".format(id))
                 return
             self.es.insert(self.es_index, _type, data, id)
+            self.h_es.insert(self.es_index, _type, data, id)
             logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
             logger.exception(e)
@@ -86,6 +88,7 @@ class TiebaSpider(object):
                 message="百度贴吧暂无数据"
             )
         self.es.create_index(self.es_index, _index_mapping)
+        self.h_es.create_index(self.es_index, _index_mapping)
         # 获取所有页的html
         for url_dic in url_list:
             worker = WorkerThread(page_data_list, self.get_page_url_data, (url_dic,))
@@ -99,19 +102,20 @@ class TiebaSpider(object):
 
         # 解析 发帖的内容
         threads = []
-        del url_list
         for resp_dic in page_data_list:
-            worker = WorkerThread(tiezi_url_list, self.parse_tiezi_detail, (resp_dic,))
-            worker.start()
-            threads.append(worker)
-        for work in threads:
-            work.join(1)
-            if work.isAlive():
-                logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
-                threads.append(work)
+            tiezi_url_list.extend(self.parse_tiezi_detail(resp_dic))
+        #     worker = WorkerThread(tiezi_url_list, self.parse_tiezi_detail, (resp_dic,))
+        #     worker.start()
+        #     threads.append(worker)
+        # for work in threads:
+        #     work.join(1)
+        #     if work.isAlive():
+        #         logger.info('Worker thread: failed to join, and still alive, and rejoin it.')
+        #         threads.append(work)
 
         # 获取 贴子内的 回复内容
         threads = []
+
         del page_data_list
         for tiezi_url_dic in tiezi_url_list:
             worker = WorkerThread(replay_url_list, self.get_tiezi_data_url, (tiezi_url_dic,))
@@ -294,7 +298,8 @@ class TiebaSpider(object):
                     pass
                 tiezi_time = obj.find("font", attrs={"class": "p_green p_date"}).text.strip()  # 发布时间
                 _tiezi_time = datetime.strptime(tiezi_time, "%Y-%m-%d %H:%M")
-                if not self.parse_crawl_date(_tiezi_time, self.task_date):
+                article_date = self.parse_crawl_date(_tiezi_time, self.task_date)
+                if not article_date:
                     logger.info("Time exceeds start date data= [ article_date : {}, tid : {}]".
                                 format(_tiezi_time, tid))
                     return
@@ -308,7 +313,7 @@ class TiebaSpider(object):
                     contents=content,  # 贴子内容，也就是楼主发布的内容
                     tieba=tieba,  # 所属贴吧
                     author=author,  # 作者
-                    time=tiezi_time,  # 发布时间
+                    time=article_date,  # 发布时间
                     is_pics=pics,  # 是否有图片
                     img_url_list=imgs,  # 图片链接
                     b_keywold=keyword,  # 关键字
@@ -318,9 +323,9 @@ class TiebaSpider(object):
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
                 self.save_one_data_to_es(resp_data, tid)
-                if author_url:
-                    if len(author_url) > 38:
-                        self.get_author_detail(author_url, fid)
+                # if author_url:
+                #     if len(author_url) > 38:
+                #         self.get_author_detail(author_url, fid)
                 tiezi_url_list.append(dict(
                     keyword=keyword,
                     tiezi_url=tiezi_url,
@@ -596,9 +601,9 @@ class TiebaSpider(object):
 
 if __name__ == '__main__':
     data = {
-        "task_date": "2019-10-15:2019-10-15",
-        "teiba_index": "test1",
-        "q": "嘛叫天津范儿"
+        "date": "2020-02-05:2020-02-27",
+        "tieba_index": "tieba_dan_yu_hou_1582701150",
+        "q": "单玉厚"
     }
     tieba = TiebaSpider(data)
     tieba.query()

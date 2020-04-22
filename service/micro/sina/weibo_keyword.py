@@ -18,7 +18,7 @@ from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time, weibo_date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import es_client
+from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from service.db.utils.es_mappings import (WEIBO_DETAIL_MAPPING, WEIBO_COMMENT_MAPPING, WEIBO_REPOST_MAPPING,
                                           WEIBO_USERINFO_MAPPING, WEIBO_LEAD_MAPPING)
 from service.micro.sina.utils.sina_mid import mid_to_str
@@ -64,9 +64,10 @@ class WeiBoSpider(object):
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie, timeout=15)
         self.es = es_client
+        self.h_es = h_es_client
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo')
+        redis_cli = RedisClient('cookies', 'weibo3')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -84,6 +85,7 @@ class WeiBoSpider(object):
                     return True
                 else:
                     self.es.update(self.es_index, _type, id, data)
+                    self.h_es.update(self.es_index, _type, id, data)
                     logger.info("update success  data : {}".format(data))
                     return True
             return False
@@ -102,6 +104,7 @@ class WeiBoSpider(object):
             if self.filter_keyword(id, _type, data):
                 return
             self.es.insert(self.es_index, _type, data, id)
+            self.h_es.insert(self.es_index, _type, data, id)
             logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
             logger.exception(e)
@@ -124,6 +127,7 @@ class WeiBoSpider(object):
         logger.info('Processing get weibo key word ！')
         try:
             self.es.create_index(self.es_index, _index_mapping)
+            self.h_es.create_index(self.es_index, _index_mapping)
             self.get_lead_data()
             url_list = weibo_date_next(self.params)
             if isinstance(url_list, list):
@@ -261,10 +265,8 @@ class WeiBoSpider(object):
                 logger.info("get lead data success.... ")
                 self.parse_lead_data(resp.text)
             else:
-                self.requester.use_proxy()
                 raise HttpInternalServerError
         except Exception as e:
-            logger.exception(e)
             self.requester.use_proxy()
             self.next_cookie()
             raise HttpInternalServerError
@@ -479,7 +481,7 @@ class WeiBoSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
@@ -503,7 +505,7 @@ class WeiBoSpider(object):
                 raise HttpInternalServerError
         except Exception as e:
             time.sleep(1)
-            self.requester.use_proxy()
+            self.requester.use_proxy(tag="same")
             raise HttpInternalServerError
 
     @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, ServiceUnavailableError), time_to_sleep=2)
@@ -964,11 +966,11 @@ if __name__ == '__main__':
 
 
     def foo():
-        for i in ["李文亮医生"]:
+        for i in ["争分夺秒9小时"]:
             dic = {
-                "weibo_index": "weibo_li_wen_liang_yi_sheng_1581048127",
+                "weibo_index": "weibo_jin_cheng_tu_xian_wu_zheng_zhuang_gan_ran_zhe_1587362540",
                 "q": i,
-                "date": "2020-02-06:2020-02-07"
+                "date": "2020-04-19:2020-04-22"
             }
             wb = WeiBoSpider(dic)
             wb.query()

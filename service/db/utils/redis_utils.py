@@ -3,7 +3,7 @@
 
 from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
-from service.core.config.redis_ import weibo_redis_cli,event_redis_cli
+from service.core.config.redis_ import weibo_redis_cli, event_redis_cli
 import random
 import redis
 

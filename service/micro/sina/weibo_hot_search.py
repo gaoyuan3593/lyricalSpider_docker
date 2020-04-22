@@ -17,7 +17,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time
-from service.db.utils.elasticsearch_utils import es_client, WEIBO_HOT_SEARCH, HOT_SEARCH_WEIBO
+from service.db.utils.elasticsearch_utils import es_client, h_es_client, WEIBO_HOT_SEARCH, HOT_SEARCH_WEIBO
 from service.micro.utils.threading_ import WorkerThread
 from service.micro.sina.utils.sina_mid import mid_to_str
 from service.db.utils.es_mappings import HOT_SEARCH_KEYWORD_WEIBO_MAPPING, WEIBO_LEAD_MAPPING
@@ -30,10 +30,11 @@ class WeiBoHotSpider(object):
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie)
         self.es = es_client
+        self.h_es = h_es_client
         self.create_index()
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo3')
+        redis_cli = RedisClient('cookies', 'weibo')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -48,6 +49,7 @@ class WeiBoHotSpider(object):
                 },
         }
         self.es.create_index(HOT_SEARCH_WEIBO, _index_mapping)
+        self.h_es.create_index(HOT_SEARCH_WEIBO, _index_mapping)
 
     def random_num(self):
         return random.uniform(0.1, 1)
@@ -67,10 +69,12 @@ class WeiBoHotSpider(object):
                         data_list.append(current_heat[0])
                         raw_heat.extend(data_list)
                         self.es.update(HOT_SEARCH_WEIBO, data.get("type"), id=id, body=raw_data)
+                        self.h_es.update(HOT_SEARCH_WEIBO, data.get("type"), id=id, body=raw_data)
                 elif _type == "user_type":
                     return True
                 else:
                     self.es.update(index, _type, id, data)
+                    self.h_es.update(index, _type, id, data)
                     logger.info("update success  data : {}".format(data))
                 return True
             return False
@@ -116,6 +120,7 @@ class WeiBoHotSpider(object):
                 logger.info("Weibo Data update success id: {}..........".format(id))
                 return
             self.es.insert(index, _type, data, id)
+            self.h_es.insert(index, _type, data, id)
             logger.info("save to es success [ index : {}, data={}]！".format(index, data))
         except Exception as e:
             logger.exception(e)

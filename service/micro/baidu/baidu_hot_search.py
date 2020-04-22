@@ -11,7 +11,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from service.db.utils.es_mappings import HOT_SEARCH_KEYWORD_MAPPING
-from service.db.utils.elasticsearch_utils import es_client, HOT_SEARCH_BAIDU
+from service.db.utils.elasticsearch_utils import es_client, h_es_client, HOT_SEARCH_BAIDU
 from datetime import datetime, timedelta
 
 
@@ -21,6 +21,7 @@ class BaiDuHotSeachSpider(object):
     def __init__(self):
         self.requester = Requester(timeout=20)
         self.es = es_client
+        self.h_es = h_es_client
         self.create_index()
 
     def create_index(self):
@@ -31,6 +32,7 @@ class BaiDuHotSeachSpider(object):
                 },
         }
         self.es.create_index(HOT_SEARCH_BAIDU, _index_mapping)
+        self.h_es.create_index(HOT_SEARCH_BAIDU, _index_mapping)
 
     def filter_keyword(self, id, _type, data):
         try:
@@ -44,6 +46,7 @@ class BaiDuHotSeachSpider(object):
                     data_list.append(current_heat[0])
                     raw_heat.extend(data_list)
                     self.es.update(HOT_SEARCH_BAIDU, data.get("type"), id=id, body=raw_data)
+                    self.h_es.update(HOT_SEARCH_BAIDU, data.get("type"), id=id, body=raw_data)
                 return True
             return False
         except Exception as e:
@@ -62,6 +65,7 @@ class BaiDuHotSeachSpider(object):
                 logger.info("{} Data update success id: {}".format(self.__name__, id))
                 return
             self.es.insert(HOT_SEARCH_BAIDU, _type, data, id)
+            self.h_es.insert(HOT_SEARCH_BAIDU, _type, data, id)
             logger.info("{} save to es success [ index : {}, data={}]！".format(self.__name__, HOT_SEARCH_BAIDU, data))
         except Exception as e:
             logger.exception(e)

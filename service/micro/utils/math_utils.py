@@ -189,6 +189,8 @@ def date_all(begin_date, end_date):
     date_list = []
     begin_date = datetime.strptime(begin_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    today_date = datetime.strptime(datetime.today().strftime("%Y-%m-%d"), "%Y-%m-%d")
+    end_date = end_date if end_date <= today_date else today_date
     while begin_date <= end_date:
         date_list.append(begin_date)
         begin_date += timedelta(days=1)
@@ -245,13 +247,14 @@ def weibo_date_next(params):
             return url_list
         date_list = date_all(start_date, end_date)
         for date in date_list:
-            cu_date = "{}-{}-{}".format(date.year, date.month, "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
+            cu_date = "{}-{}-{}".format(date.year, date.month,
+                                        "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
             if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d") or \
                     datetime.strptime(start_date, "%Y-%m-%d") == datetime.strptime(end_date, "%Y-%m-%d"):
                 for i in range(1, 24):
                     k = start_hours if i == 1 else str(i - 1)
                     _s_date = (cu_date + "-" + k) + ":" + (cu_date + "-" + str(i))
-                    url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}".\
+                    url = "https://s.weibo.com/weibo?q={}&typeall=1&suball=1&Refer=g&timescope=custom:{}". \
                         format(q, _s_date)
                     url_list.append(
                         dict(
@@ -274,22 +277,6 @@ def weibo_date_next(params):
 
 
 if __name__ == '__main__':
-    a = ' 11月19日 23:37'
-    print(str_to_format_time(a))
-    data = {"date": "2019-09-27:2019-10-10", "q": "sdafdsafsdaf"}
+    data = {"date": "2020-02-13:2020-02-14", "q": "sdafdsafsdaf"}
     a = weibo_date_next(data)
-    article_date = datetime.strptime("2019-07-12", "%Y-%m-%d")
-    task_date = "2019-07-25"
-
-    def parse_crawl_date(article_date, task_date):
-        if not task_date:
-            return
-        start_date = task_date
-        if ":" in task_date:
-            start_date, end_date = task_date.split(":")
-        begin_date = datetime.strptime(start_date, "%Y-%m-%d")
-        if article_date.__ge__(begin_date):
-            return article_date
-        else:
-            return
-    parse_crawl_date(article_date, task_date)
+    print(a)

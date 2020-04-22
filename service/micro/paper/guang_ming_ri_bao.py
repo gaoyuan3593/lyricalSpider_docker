@@ -12,6 +12,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.db.utils.elasticsearch_utils import ALL_PAPER_DETAILS, PAPER_ALL_MAPPING
 from service.micro.news.utils.search_es import SaveDataToEs
+from service.micro.news.utils.proxies_util import get_proxies
 
 INDEX_TYPE = "paper_guang_ming_ri_bao"
 
@@ -38,6 +39,10 @@ class GuangMingRIBaoSpider(object):
     def random_num(self):
         return random.uniform(0.1, 0.5)
 
+    def use_proxies(self):
+        self.s.proxies = get_proxies()
+
+    @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_begin_url(self):
         year = datetime.today().year
         _month = datetime.today().month
@@ -66,7 +71,8 @@ class GuangMingRIBaoSpider(object):
                 return url_list
         except Exception as e:
             logger.exception(e)
-            raise e
+            self.use_proxies()
+            raise HttpInternalServerError
 
     @retry(max_retries=5, exceptions=(HttpInternalServerError, TimedOutError, InvalidResponseError), time_to_sleep=3)
     def get_news_all_url(self, url_dic):

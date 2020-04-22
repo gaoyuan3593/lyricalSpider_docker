@@ -40,3 +40,13 @@ def get_monitor_news():
         return resp_ok(dict(
             status=200,
             msg="未查询到结果"))
+
+
+@app.route('/lyrical/monitor/paper', methods=['GET'])
+def get_monitor_paper(service_type):
+    ds = get_data_source_with_service(service_type)
+    handler = get_module_from_service(service_type, ds.handler)
+    data = get_request_data(request)
+    obj = handler.get_handler(data)
+    result = obj.query()
+    return resp_ok(result)

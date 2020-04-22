@@ -118,7 +118,8 @@ class SearchKeyword(object):
                 continue
             try:
                 self.now_data.update(q=keyword.strip())
-                func_list = [self.get_weibo_data, self.get_baijiahao_data, self.get_tieba_data, self.get_zhihu_data]  # self.get_wechat_data,
+                func_list = [self.get_weibo_data, self.get_baijiahao_data, self.get_tieba_data,
+                             self.get_zhihu_data]  # self.get_wechat_data,
                 for func in func_list:
                     w = multiprocessing.Process(target=func, args=(self.now_data,))
                     w.start()

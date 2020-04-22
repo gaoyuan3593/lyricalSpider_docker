@@ -1,14 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 from service import logger
-from service.db.utils.elasticsearch_utils import es_client
+from service.db.utils.elasticsearch_utils import es_client, h_es_client
 
 
 class SaveDataToEs(object):
-
-    @classmethod
-    def create_client(cls):
-        return es_client
 
     @classmethod
     def filter_keyword(cls, es, index, _type, id):
@@ -25,17 +21,17 @@ class SaveDataToEs(object):
     @classmethod
     def save_one_data_to_es(cls, index, data, id):
         try:
-            es = cls.create_client()
             _type = data.get("type")
-            if cls.filter_keyword(es, index, _type, id):
+            if cls.filter_keyword(es_client, index, _type, id):
                 logger.info("is existed  id: {}".format(id))
                 return
-            es.insert(index, _type, data, id)
+            es_client.insert(index, _type, data, id)
+            h_es_client.insert(index, _type, data, id)
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e
 
     @classmethod
     def create_index(cls, index_name, index_mappings):
-        es = cls.create_client()
-        return es.create_index(index_name, index_mappings)
+
+        return es_client.create_index(index_name, index_mappings), h_es_client.create_index(index_name, index_mappings)

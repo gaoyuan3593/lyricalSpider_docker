@@ -17,7 +17,7 @@ from service.micro.utils.cookie_utils import dict_to_cookie_jar
 from service.micro.utils.math_utils import str_to_format_time, weibo_date_next
 from service.db.utils.redis_utils import RedisClient
 from service.micro.utils.threading_ import WorkerThread
-from service.db.utils.elasticsearch_utils import es_client
+from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from service.db.utils.es_mappings import (WEIBO_DETAIL_MAPPING, WEIBO_COMMENT_MAPPING, WEIBO_REPOST_MAPPING,
                                           WEIBO_USERINFO_MAPPING)
 
@@ -51,6 +51,7 @@ class WeiBoMonitorSpider(object):
         self.cookie = dict_to_cookie_jar(self.get_cookie())
         self.requester = Requester(cookie=self.cookie)
         self.es = es_client
+        self.h_es = h_es_client
 
     def get_cookie(self):
         redis_cli = RedisClient('cookies', 'weibo')
@@ -71,6 +72,7 @@ class WeiBoMonitorSpider(object):
                     return True
                 else:
                     self.es.update(self.es_index, _type, id, data)
+                    self.h_es.update(self.es_index, _type, id, data)
                     logger.info("update success  data : {}".format(data))
                     return True
             return False
@@ -89,6 +91,7 @@ class WeiBoMonitorSpider(object):
             if self.filter_keyword(id, _type, data):
                 return
             self.es.insert(self.es_index, _type, data, id)
+            self.h_es.insert(self.es_index, _type, data, id)
             logger.info("save to es success [ index : {}, data={}]！".format(self.es_index, data))
         except Exception as e:
             logger.exception(e)
@@ -98,6 +101,7 @@ class WeiBoMonitorSpider(object):
         logger.info('Processing get weibo user id= {} ！'.format(self.user_id))
         detail_list = []
         self.es.create_index(self.es_index, _index_mapping)
+        self.h_es.create_index(self.es_index, _index_mapping)
         url_list = self.search_weibo_user_page()
         for url in url_list:
             try:

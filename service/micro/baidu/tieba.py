@@ -15,7 +15,7 @@ from service.exception.exceptions import *
 from service import logger
 from service.micro.utils import ua
 from datetime import datetime
-from service.db.utils.elasticsearch_utils import es_client, BAIDUTIEBA
+from service.db.utils.elasticsearch_utils import es_client, h_es_client, BAIDUTIEBA
 
 
 class TiebaSpider(object):
@@ -24,6 +24,7 @@ class TiebaSpider(object):
     def __init__(self):
         self.requester = Requester(timeout=20)
         self.es = es_client
+        self.h_es = h_es_client
 
     def filter_keyword(self, id, _type):
         try:
@@ -47,6 +48,7 @@ class TiebaSpider(object):
                 logger.info("Data already exists id: {}".format(id))
                 return
             self.es.insert(BAIDUTIEBA, _type, data, id)
+            self.h_es.insert(BAIDUTIEBA, _type, data, id)
             logger.info("save to es success [ index : {}, data={}]！".format(BAIDUTIEBA, data))
         except Exception as e:
             logger.exception(e)

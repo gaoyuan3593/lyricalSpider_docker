@@ -72,7 +72,7 @@ def remove_job(_id):
     :param _id:
     :return:
     """
-    _c = connection.new_media.jobs
+    _c = connection.apscheduler.jobs
     _parm = _c.find_one({"_id": _id})
     if _parm:
         _c.delete_one({"_id": _id})

@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     # for dic in weibo_list:
     #     index = dic.get("weibo_index")
-    _type = "detail_type"
-    final_results = search("test_weibo", _type)
+    _type = "comment_type"
+    final_results = search("weibo_xiang_gang_ge_jie_dui_jing_ji_biao_shi_dan_you_1565857466", _type)
     #new_index = "_".join(index.split("_")[:-1])
     save_data_to_es("weibo_hot_search_detail", final_results)

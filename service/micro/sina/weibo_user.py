@@ -9,7 +9,6 @@ from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
 from service.micro.news.utils.proxies_util import get_proxies
-from service.db.utils.elasticsearch_utils import es_client
 
 
 class WeiBoUsereSpider(object):
@@ -18,7 +17,6 @@ class WeiBoUsereSpider(object):
     def __init__(self, params):
         self.user_name = params.get("user_name")
         self.s = requests.session()
-        self.es = es_client
 
     def use_proxies(self):
         self.s.proxies = get_proxies()

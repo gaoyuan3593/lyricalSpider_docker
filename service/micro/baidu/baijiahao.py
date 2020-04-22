@@ -16,7 +16,7 @@ from service import logger
 from service.micro.utils import ua
 from service.micro.utils.cookie_utils import dict_to_cookie_jar
 
-from service.db.utils.elasticsearch_utils import es_client, BSIJISHSO_KRYWORD_DETAIL
+from service.db.utils.elasticsearch_utils import es_client, h_es_client, BSIJISHSO_KRYWORD_DETAIL
 from datetime import datetime, timedelta
 
 
@@ -26,6 +26,7 @@ class BaiJiaHaoSpider(object):
     def __init__(self):
         self.requester = Requester(timeout=20)
         self.es = es_client
+        self.h_es = h_es_client
 
     def filter_keyword(self, _type, _dic, data=None):
         mapping = {
@@ -45,6 +46,7 @@ class BaiJiaHaoSpider(object):
             if result.get("hits").get("hits"):
                 if _type == "detail":
                     self.es.update(BSIJISHSO_KRYWORD_DETAIL, _type, result.get("hits").get("hits")[0].get("_id"), data)
+                    self.h_es.update(BSIJISHSO_KRYWORD_DETAIL, _type, result.get("hits").get("hits")[0].get("_id"), data)
                     logger.info("dic : {}, update success".format(_dic))
                     return True
                 else:
@@ -66,6 +68,7 @@ class BaiJiaHaoSpider(object):
                 logger.info("is existed  dic: {}".format(dic))
                 return
             self.es.insert(BSIJISHSO_KRYWORD_DETAIL, _type, data)
+            self.h_es.insert(BSIJISHSO_KRYWORD_DETAIL, _type, data)
             logger.info(" save to es success data= {}！".format(data))
         except Exception as e:
             raise e

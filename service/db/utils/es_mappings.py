@@ -969,6 +969,53 @@ PAPER_ALL_MAPPING = {
     }
 }
 
+#----------小木虫maping----------------#
+MUCHONG_DETAIL_MAPPING = {
+    "title": {
+        "type": "text",
+    },
+    "author": {
+        "type": "keyword",
+    },
+    "time": {
+        "type": "date",
+        "index": True,
+    },
+    "b_keyword": {
+        "type": "keyword",
+        "index": True,
+    },
+    "contents": {
+        "type": "text",
+    },
+    "id": {
+        "type": "keyword",
+        "index": True,
+    },
+    "type": {
+        "type": "keyword",
+        "index": True,
+    },
+    "link": {
+        "type": "text",
+    },
+    "crawl_time": {
+        "type": "date",
+        "index": True,
+    },
+    "subject_words": {
+        "type": "nested",
+        "properties": {
+            "words": {
+                "type": "keyword"
+            },
+            "num": {
+                "type": "integer"
+            }
+        }
+    }
+}
+
 if __name__ == '__main__':
     import datetime
 

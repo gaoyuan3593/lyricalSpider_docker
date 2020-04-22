@@ -7,18 +7,21 @@ from service import logger
 from service.utils.yaml_tool import get_by_name_yaml
 from elasticsearch import Elasticsearch
 
-conf = get_by_name_yaml('elasticsearch')
+h_conf = get_by_name_yaml('huaweiyun_elasticsearch')
+s_conf = get_by_name_yaml('school_elasticsearch')
 
 
 class ElasticsearchClient():
 
-    def __init__(self):
+    def __init__(self, url, port):
         """
         初始化 Elasticsearch 连接
         """
         # es_host = 'http://{}:{}@{}:{}'.format(conf["user"], conf["password"], conf["host"], conf["port"])
-        es_host = "{}:{}/".format(conf["url"], conf["port"])
+        # es_host = "{}:{}/".format(conf["url"], conf["port"])
+        es_host = "{}:{}/".format(url, port)
         self.es = Elasticsearch(hosts=es_host)
+        self.h_es = Elasticsearch(hosts=es_host)
 
     def create_index(self, index_name, index_mappings, ignore=400):
         """
@@ -33,6 +36,7 @@ class ElasticsearchClient():
         }
         if self.es.indices.exists(index=index_name) is not True:
             result = self.es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)
+            h_result = self.h_es.indices.create(index=index_name, body=_index_mappings, ignore=ignore)
             if result.get("acknowledged"):
                 return result
             elif result.get("status") == 400:
@@ -56,7 +60,8 @@ class ElasticsearchClient():
         :return:
         """
         if id:
-            return self.es.index(index_name, doc_type=doc_type, body=body, id=id)
+            self.es.index(index_name, doc_type=doc_type, body=body, id=id)
+            self.h_es.index(index_name, doc_type=doc_type, body=body, id=id)
         else:
             return self.es.index(index_name, doc_type=doc_type, body=body)
 
@@ -151,4 +156,5 @@ ALL_NEWS_DETAILS = "all_news_details"
 ALL_PAPER_DETAILS = "all_paper_details"
 
 # es连接
-es_client = ElasticsearchClient()
+es_client = ElasticsearchClient(s_conf["url"], s_conf["port"])
+h_es_client = ElasticsearchClient(h_conf["url"], h_conf["port"])

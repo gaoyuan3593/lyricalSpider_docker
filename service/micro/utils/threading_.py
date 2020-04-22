@@ -9,7 +9,7 @@ from service import logger
 __author__ = 'gaoyuan'
 
 THREAD_JOIN_TIMEOUT = 1
-MAX_THREADS_NUM = 5
+MAX_THREADS_NUM = 10
 threads_sem = Semaphore(MAX_THREADS_NUM)
 
 

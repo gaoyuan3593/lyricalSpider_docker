@@ -4,53 +4,45 @@ import random
 import time
 import json
 import hashlib
-from urllib.parse import quote
 from bs4 import BeautifulSoup
 from service.core.utils.http_ import Requester
 from service.exception import retry
 from service.exception.exceptions import *
 from service import logger
-from service.db.utils.es_mappings import ZHIHU_DETAIL_MAPPING, ZHIHU_USER_MAPPING, ZHIHU_COMMENT_MAPPING
+from service.db.utils.es_mappings import ZHIHU_DETAIL_MAPPING
 from service.db.utils.elasticsearch_utils import es_client, h_es_client
 from datetime import datetime
 
 from service.micro.utils import ua
 
+INDEX_TYPE = "zhi_hu"
 
-class ZhiHuKeywordSpider(object):
+
+class ZhiHuTeacherSpider(object):
     __name__ = 'zhi hu keyword'
 
     def __init__(self, params=None):
         self.params = params
-        self.es_index = self.params.get("zhihu_index")
+        self.es_index = self.params.get("index")
         self.q = self.params.get("q", None)
+        self.name_cn = self.params.get("name_cn")
+        self.name_en = self.params.get("name_en")
         self.requester = Requester(timeout=20)
         self.es = es_client
         self.h_es = h_es_client
         self.headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3",
-            # "accept-encoding": "gzip, deflate, br",
-            # "accept-language": "zh-CN,zh;q=0.9",
             "user-agent": ua(),
-            # "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
-            # "upgrade-insecure-requests": "1",
-            # "cache-contro": "max-age=0",
         }
 
     def create_index(self):
+
         index_mapping = {
-            "detail_type":
+            INDEX_TYPE:
                 {
                     "properties": ZHIHU_DETAIL_MAPPING
-                },
-            "comment_type":
-                {
-                    "properties": ZHIHU_COMMENT_MAPPING
-                },
-            "user_type":
-                {
-                    "properties": ZHIHU_USER_MAPPING
-                },
+                }
+
         }
         self.es.create_index(self.es_index, index_mapping)
         self.h_es.create_index(self.es_index, index_mapping)
@@ -59,13 +51,7 @@ class ZhiHuKeywordSpider(object):
         try:
             result = self.es.get(self.es_index, _type, id)
             if result.get("found"):
-                if _type == "user_type":
-                    return True
-                else:
-                    self.es.update(self.es_index, _type, id, data)
-                    self.h_es.update(self.es_index, _type, id, data)
-                    logger.info("update success  data : {}".format(data))
-                    return True
+                return True
             return False
         except Exception as e:
             logger.exception(e)
@@ -73,7 +59,7 @@ class ZhiHuKeywordSpider(object):
 
     def save_one_data_to_es(self, data, id=None):
         try:
-            _type = data.get("type")
+            _type = INDEX_TYPE
             if self.filter_keyword(id, _type, data):
                 logger.info("{} Data already exists id: {}".format(self.__name__, id))
                 return
@@ -100,10 +86,7 @@ class ZhiHuKeywordSpider(object):
                 next_url, data = self.get_api_data(next_url)
                 if not data or not next_url:
                     break
-                resp_data = self.parse_zhihu_keyword_data(data)
-                if resp_data:
-                    comment_url_list = self.parse_comment_url(resp_data)
-                    self.get_api_comment_data(comment_url_list)
+                self.parse_zhihu_keyword_data(data)
 
             return dict(
                 status=200,
@@ -144,37 +127,9 @@ class ZhiHuKeywordSpider(object):
             self.requester.use_proxy()
             raise HttpInternalServerError
 
-    @retry(max_retries=3, exceptions=(HttpInternalServerError, TimedOutError, RequestFailureError), time_to_sleep=3)
-    def get_api_comment_data(self, url_list):
-        """
-        获取知乎评论内容
-        :return:
-        """
-        for dic in url_list:
-            logger.info('Processing get zhi hu comment data ！')
-            # time.sleep(self.random_num())
-            url = dic.get("url")
-            zhihu_id = dic.get("zhihu_id")
-            try:
-                response = self.requester.get(url=url, header_dict=self.headers)
-            except Exception as e:
-                self.requester.use_proxy()
-                continue
-            if response.status_code == 200:
-                logger.info("request zhi hu api comment data success ")
-                resp_data = response.json()
-                data_list = resp_data.get("data")
-                if data_list:
-                    self.parse_comment_data(zhihu_id, data_list)
-
-            else:
-                logger.error('get zhi hu keyword data failed !')
-                raise HttpInternalServerError
-
     def parse_zhihu_keyword_data(self, data_list):
         if not data_list:
             return
-        data_id_list = []
         for data in data_list:
             has_href, pics, videos, img_url_list, content, url = 0, 0, 0, [], "", ""
             try:
@@ -239,6 +194,12 @@ class ZhiHuKeywordSpider(object):
                     logger.info("Time exceeds start date data= [ create_time : {}, id : {}]".
                                 format(create_time, _id))
                     continue
+                if self.name_cn:
+                    if self.name_cn not in content:
+                        return
+                if self.name_en:
+                    if self.name_en not in name_en:
+                        return
                 author_data = self.parse_author_data(_author)
                 resp_data = dict(
                     id=_id,  # id
@@ -251,7 +212,6 @@ class ZhiHuKeywordSpider(object):
                     contents=content,  # 内容
                     like=like_num,  # 点赞数
                     comment_num=com_num,  # 评论数
-                    type="detail_type",
                     b_keyword=self.q,  # 关键词
                     link=url,  # 文章链接
                     is_has_href=has_href,  # 是否有网页链接,
@@ -261,16 +221,9 @@ class ZhiHuKeywordSpider(object):
                     crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
                 )
                 self.save_one_data_to_es(resp_data, _id)
-                data_id_list.append(
-                    dict(
-                        zhihu_id=_id,
-                        com_num=com_num
-                    )
-                )
             except Exception as e:
                 logger.exception(e)
                 continue
-        return data_id_list
 
     def parse_author_data(self, data):
         if not data:
@@ -305,75 +258,13 @@ class ZhiHuKeywordSpider(object):
                 is_following=is_following,  # 是否是他的粉丝
                 topic_list=topics,  # 话题列表
                 introduction=author_description,  # 作者简介
-                type="user_type",
                 crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
             )
-            self.save_one_data_to_es(author_data, user_id)
+            # self.save_one_data_to_es(author_data, user_id)
             return author_data
         except Exception as e:
             logger.exception(e)
             return {}
-
-    def parse_comment_data(self, zhihu_id, data_list):
-        if not data_list:
-            return
-        try:
-            content, reply_user, reply_user_id, is_reply = "", "", "", 0
-            for data in data_list:
-                comment_id = data.get("id")
-                contents = data.get("content")
-                reply_to_author = data.get("reply_to_author")
-                if reply_to_author:
-                    is_reply = 1
-                    reply_user = reply_to_author.get("member").get("name")
-                    reply_user_id = reply_to_author.get("member").get("id")
-                like_num = data.get("vote_count")
-                create_time = data.get("created_time")
-                is_author = data.get("is_author")
-                is_parent_author = data.get("is_parent_author")
-                comment_user = data.get("author").get("member").get("name")
-                comment_user_id = data.get("author").get("member").get("id")
-                if "<p>" in contents:
-                    soup = BeautifulSoup(contents, "html.parser")
-                    content = soup.text.strip()
-                else:
-                    content = contents
-                comment_data = dict(
-                    user_name=comment_user,  # 评论用户名
-                    user_id=comment_user_id,  # 评论用户id
-                    like=like_num,  # 点赞数
-                    zhihu_id=zhihu_id,  # 原知乎id
-                    id=comment_id,  # 评论id
-                    time=self.parse_time_chuo(create_time),  # 评论时间
-                    contents=content,  # 评论内容
-                    is_reply=is_reply,  # 是否是回复谁，1是，0不是
-                    reply_user=reply_user,  # 被回复用户名
-                    reply_user_id=reply_user_id,  # 被回复用户名id
-                    is_author=is_author,  # 是否是评论作者
-                    is_parent_author=is_parent_author,  # 是否是子评论作者
-                    type="comment_type",
-                    crawl_time=datetime.strptime(datetime.now().strftime("%Y-%m-%d %H:%M"), "%Y-%m-%d %H:%M")  # 爬取时间
-                )
-                self.save_one_data_to_es(comment_data, comment_id)
-        except Exception as e:
-            logger.exception(e)
-            return {}
-
-    def parse_comment_url(self, id_list):
-        url_lst = []
-        for dic in id_list:
-            com_num = dic.get("com_num")
-            if com_num:
-                zhihu_id = dic.get("zhihu_id")
-                count = com_num // 20 + 1 if com_num > 20 else 1
-                for i in range(count):
-                    url = "https://www.zhihu.com/api/v4/answers/{}/comments?order=reverse&limit=20&offset={}&" \
-                          "status=open".format(zhihu_id, i * 20)
-                    url_lst.append(
-                        dict(
-                            url=url, zhihu_id=zhihu_id
-                        ))
-        return url_lst
 
     def parse_time_chuo(self, _time):
         try:
@@ -398,7 +289,7 @@ class ZhiHuKeywordSpider(object):
 
 if __name__ == '__main__':
     # "天津滨海收费站回应仅供ETC通行"
-    parsm = {"q": "宝坻疫情", "zhihu_index": "test_zhi_hu",
+    parsm = {"q": "李涛", "index": "li_tao",
              "date": "2020-02-09:2020-02-10"}
-    zh = ZhiHuKeywordSpider(parsm)
+    zh = ZhiHuTeacherSpider(parsm)
     zh.query()

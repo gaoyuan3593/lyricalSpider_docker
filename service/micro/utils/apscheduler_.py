@@ -21,15 +21,23 @@ conf = get_by_name_yaml('mongodb')
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-MAX_INSTANCE_NUM = 200
-TIME = 120
+MAX_INSTANCE_NUM = 2
+TIME = 300
 TZ = pytz.timezone('America/New_York')
 
+client = MongoClient(
+    host='mongodb://{}'.format(conf["host"]),
+    port=conf["port"],
+)
 
 jobstores = {
     'mongo': MongoDBJobStore(),
     'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
 }
+# jobstores = {
+#     'mongo': MongoDBJobStore(collection='jobs', client=client),
+#     'default': MemoryJobStore()
+# }
 
 executors = {
     'default': ThreadPoolExecutor(20),
@@ -63,11 +71,8 @@ class TaskApscheduler(object):
         scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
 
         scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
-                          next_run_time=datetime.now(TZ) + timedelta(seconds=5)
+                          next_run_time=datetime.now() + timedelta(seconds=5)
                           )
-        # scheduler.add_job(self.func, 'interval', id=self.job_id, minutes=TIME, jobstore='mongo', replace_existing=True,
-        #                   next_run_time=datetime.now() + timedelta(seconds=10)
-        #                   )
         scheduler.start()
 
 

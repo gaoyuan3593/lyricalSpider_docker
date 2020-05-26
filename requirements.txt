@@ -49,7 +49,7 @@ six==1.12.0
 SQLAlchemy==1.3.2
 tzlocal==1.5.1
 urllib3==1.22
-Werkzeug==0.15.2
+Werkzeug==0.15.3
 XlsxWriter==1.1.7
 pypinyin==0.37.0
 threadpool==1.3.2

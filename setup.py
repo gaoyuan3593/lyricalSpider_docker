@@ -23,7 +23,7 @@ setup(
         "APScheduler==3.6.0",
         "bs4==0.0.1",
         "fake-useragent==0.1.10",
-        "Flask==0.12.4",
+        "Flask==1.0",
         "Flask-Bcrypt==0.7.1",
         "Flask-Cache==0.13.1",
         "flask-restplus==0.10.1",

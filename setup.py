@@ -34,7 +34,7 @@ setup(
         "lxml==4.3.3",
         "PyYAML==3.12",
         "redis==2.10.6",
-        "requests==2.18.4",
+        "requests==2.20.0",
         "crypto==1.4.1",
         "urllib3==1.22",
         "celery==4.3.0",

@@ -1027,4 +1027,4 @@ if __name__ == '__main__':
                 "properties": PAPER_ALL_MAPPING
             }
     }
-    es_client.create_index("all_paper_details", _index_mapping)
+    es_client.create_index("all_paper_details1111", _index_mapping)

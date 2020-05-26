@@ -73,6 +73,8 @@ class WeiBoHotSpider(object):
                 elif _type == "user_type":
                     return True
                 else:
+                    if id == "25eb6af784f38841f8d707fcd16290f7":
+                        print(id)
                     self.es.update(index, _type, id, data)
                     self.h_es.update(index, _type, id, data)
                     logger.info("update success  data : {}".format(data))

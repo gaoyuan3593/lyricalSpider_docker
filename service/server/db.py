@@ -17,9 +17,3 @@ engine = create_engine('mysql+pymysql://{}:{}@{}:{}/{}'.format(
 db_session = scoped_session(sessionmaker(autocommit=True,
                                          autoflush=False,
                                          bind=engine))
-
-if __name__ == '__main__':
-    k = db_session.query(DataSource).filter(DataSource.service == "sina").first()
-    print(k.handler)
-
-    db_session.remove()

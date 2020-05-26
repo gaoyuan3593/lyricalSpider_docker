@@ -247,7 +247,8 @@ def weibo_date_next(params):
             return url_list
         date_list = date_all(start_date, end_date)
         for date in date_list:
-            cu_date = "{}-{}-{}".format(date.year, date.month,
+            cu_date = "{}-{}-{}".format(date.year,
+                                        "0{}".format(date.month) if len(str(date.month)) < 2 else str(date.month),
                                         "0{}".format(date.day) if len(str(date.day)) < 2 else str(date.day))
             if datetime.strptime(start_date, "%Y-%m-%d") < datetime.strptime(end_date, "%Y-%m-%d") or \
                     datetime.strptime(start_date, "%Y-%m-%d") == datetime.strptime(end_date, "%Y-%m-%d"):

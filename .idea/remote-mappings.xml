@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteMappingsManager">
+    <list>
+      <list>
+        <remote-mappings server-id="python@sftp://gaoyuan@172.19.135.131:22/home/gaoyuan/.conda/envs/spider_env/bin/python" />
+        <remote-mappings server-id="python@sftp://gaoyuan@172.19.135.131:22/home/gaoyuan/spider_app/spider_app/bin/python">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/gaoyuan/spider_app/lyricalSpider" />
+            </list>
+          </settings>
+        </remote-mappings>
+        <remote-mappings server-id="python@sftp://gaoyuan@172.19.135.131:22/usr/bin/python3" />
+        <remote-mappings server-id="python@sftp://gaoyuan@172.19.135.140:22/home/gaoyuan/.conda/envs/ve36/bin/python3.6" />
+        <remote-mappings server-id="python@sftp://gaoyuan@172.19.135.131:22/home/gaoyuan/ve36/bin/python3" />
+        <remote-mappings server-id="python@sftp://gaoyuan@123.56.97.223:22/usr/bin/python">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/gaoyuan/environments" />
+            </list>
+          </settings>
+        </remote-mappings>
+      </list>
+    </list>
+  </component>
+</project>

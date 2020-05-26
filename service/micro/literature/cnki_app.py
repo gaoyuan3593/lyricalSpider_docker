@@ -103,7 +103,7 @@ class CnkiSpider(object):
             time.sleep(self.random_num())
             resp = self.requester.post(url, header_dict=headers, data_dict=data).text
             if "条" in resp:
-                logger.info("count: {} , get_cnki_page_data sussess！！！！ ")
+                logger.info("count: {} , get_cnki_page_data sussess！！！！ ".format(page_num))
                 return resp
             else:
                 self.next_cookie()
@@ -170,9 +170,9 @@ class CnkiSpider(object):
             }
             resp = self.requester.post(url, header_dict=headers, data_dict=data).text
             if "搜索结果" in resp:
-                count = int(re.findall(r'<span id="totalcount">(\d+?)</span>', resp)[0])
+                count = int(re.findall(r'<span id="totalcount" style="display:none;">(\d+?)</span>', resp)[0])
                 page_num = count // 10 + 1
-                # page_num = 30
+                page_num = 30
                 page_resp_list = self.thread_get_page_data(page_num)
                 resp_list.extend(page_resp_list)
                 resp_list.append(resp)

@@ -65,9 +65,10 @@ class WeiBoSpider(object):
         self.requester = Requester(cookie=self.cookie, timeout=15)
         self.es = es_client
         self.h_es = h_es_client
+        self.task_date = self.params.get("date")
 
     def get_cookie(self):
-        redis_cli = RedisClient('cookies', 'weibo3')
+        redis_cli = RedisClient('cookies', 'weibo')
         return redis_cli.return_choice_cookie()
 
     def next_cookie(self):
@@ -426,8 +427,14 @@ class WeiBoSpider(object):
                     pass
             if "转赞" in weibo_time:
                 weibo_time = weibo_time.split("转赞")[0].strip()
+            _weibo_time = str_to_format_time(weibo_time)
+            article_date = self.parse_crawl_date(_weibo_time, self.task_date)
+            if not article_date:
+                logger.info("Time exceeds start date data= [ article_date : {}, weibo_id : {}]".
+                            format(_weibo_time, weibo_id))
+                return
             resp_dada = dict(
-                time=str_to_format_time(weibo_time),  # 发微时间
+                time=_weibo_time,  # 发微时间
                 platform=platform,  # 平台
                 contents=contents,  # 内容
                 id=weibo_id,  # 微博id
@@ -753,7 +760,7 @@ class WeiBoSpider(object):
                     time=str_to_format_time(comment_time),  # 评论时间
                     platform=platform,  # 平台
                     contents="".join(comment_contents) if isinstance(comment_contents,
-                                                                             tuple) else comment_contents,  # 评论内容
+                                                                     tuple) else comment_contents,  # 评论内容
                     id=comment_id,  # 评论id
                     user_id=user_id,  # 用户id
                     user_name="".join(user_name) if isinstance(user_name, tuple) else user_name,  # 用户名
@@ -952,6 +959,22 @@ class WeiBoSpider(object):
             url_list.append(dict(url=url, uid=uid))
         return url_list
 
+    def parse_crawl_date(self, article_date, task_date):
+        if not task_date:
+            return
+        if ":" in task_date:
+            start_date, end_date = task_date.split(":")
+            _end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            begin_date = datetime.strptime(start_date, "%Y-%m-%d")
+            _article_date = datetime.strptime(article_date.strftime("%Y-%m-%d"), "%Y-%m-%d")
+            if _article_date.__ge__(begin_date):
+                if _article_date.__le__(_end_date):
+                    return article_date
+                else:
+                    return None
+            else:
+                return None
+
 
 def get_handler(*args, **kwargs):
     return WeiBoSpider(*args, **kwargs)
@@ -966,12 +989,14 @@ if __name__ == '__main__':
 
 
     def foo():
-        for i in ["争分夺秒9小时"]:
+        for i in ["天津,一季度,GDP"]:
             dic = {
-                "weibo_index": "weibo_jin_cheng_tu_xian_wu_zheng_zhuang_gan_ran_zhe_1587362540",
+                "weibo_index": "weibo_tian_jin_yi_ji_du_gdp_1587604823",
                 "q": i,
-                "date": "2020-04-19:2020-04-22"
+                "date": "2020-04-23:2020-04-23"
             }
             wb = WeiBoSpider(dic)
             wb.query()
+
+
     foo()

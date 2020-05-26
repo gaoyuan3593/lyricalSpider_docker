@@ -1,34 +1,20 @@
-#mysql:
-#  database: new_media
-#  user: root
-#  password: newmedia1895
-#  host: baizeinfo.com
-#  port: 30319
-
 mysql:
   database: new_media
-  t_database: teacher_evaluate
   user: root
-  password: tjunmwz123
-  host: 172.19.135.131
-  port: 3306
-
-#redis:
-#  password:
-#  host: baizeinfo.com
-#  port: 30432
+  password: newmedia1895
+  host: baizeinfo.com
+  port: 30319
 
 redis:
-  password: tjunmwz123
-  host: 172.19.135.135
-  port: 6379
-
+  password:
+  host: baizeinfo.com
+  port: 30432
 
 
 huaweiyun_elasticsearch:
-  url: http://121.36.22.104
-  user: es
-  password:
+  host: 114.116.226.115
+  user: elastic
+  password: newmedia1895
   port: 9200
 
 school_elasticsearch:
@@ -49,17 +35,11 @@ kuaiproxy:
   host: http://kps.kdlapi.com/api/getkps
   orderid: 938735159539945
 
-#mongodb:
-#  user: root
-#  password:
-#  host: baizeinfo.com
-#  port: 31686
-
 mongodb:
   user: root
-  password: newmedia1895
-  host: 172.19.135.131
-  port: 27017
+  password:
+  host: baizeinfo.com
+  port: 31686
 
 host: 127.0.0.1
 port: 8080

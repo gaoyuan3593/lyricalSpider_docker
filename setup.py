@@ -36,7 +36,7 @@ setup(
         "redis==2.10.6",
         "requests==2.18.4",
         "crypto==1.4.1",
-        "urllib3==1.22",
+        "urllib3==1.24.2",
         "celery==4.3.0",
         "pymongo==3.7.2",
         "pandas==0.24.2",

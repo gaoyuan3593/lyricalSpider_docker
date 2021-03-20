@@ -29,7 +29,7 @@ setup(
         "flask-restplus==0.10.1",
         "Flask-SQLAlchemy==2.3.2",
         "gunicorn==19.7.1",
-        "Jinja2==2.10",
+        "Jinja2==2.11.3",
         "Logbook==1.3.3",
         "lxml==4.3.3",
         "PyYAML==3.12",

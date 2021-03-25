@@ -32,7 +32,7 @@ setup(
         "Jinja2==2.10",
         "Logbook==1.3.3",
         "lxml==4.3.3",
-        "PyYAML==3.12",
+        "PyYAML==5.4",
         "redis==2.10.6",
         "requests==2.18.4",
         "crypto==1.4.1",

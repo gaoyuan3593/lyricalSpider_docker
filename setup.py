@@ -41,7 +41,7 @@ setup(
         "pymongo==3.7.2",
         "pandas==0.24.2",
         "pillow==6.0.0",
-        "rsa==4.0",
+        "rsa==4.7",
         "jieba==0.39",
     ],
     data_files=[

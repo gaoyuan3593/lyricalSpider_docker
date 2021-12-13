@@ -31,7 +31,7 @@ setup(
         "gunicorn==19.7.1",
         "Jinja2==2.10",
         "Logbook==1.3.3",
-        "lxml==4.3.3",
+        "lxml==4.6.5",
         "PyYAML==3.12",
         "redis==2.10.6",
         "requests==2.18.4",

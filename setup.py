@@ -37,7 +37,7 @@ setup(
         "requests==2.18.4",
         "crypto==1.4.1",
         "urllib3==1.22",
-        "celery==4.3.0",
+        "celery==5.2.2",
         "pymongo==3.7.2",
         "pandas==0.24.2",
         "pillow==6.0.0",

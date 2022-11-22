@@ -40,7 +40,7 @@ setup(
         "celery==4.3.0",
         "pymongo==3.7.2",
         "pandas==0.24.2",
-        "pillow==6.0.0",
+        "pillow==9.3.0",
         "rsa==4.0",
         "jieba==0.39",
     ],
